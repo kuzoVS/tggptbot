@@ -11,8 +11,8 @@ from aiogram import Bot, Dispatcher, types, F, BaseMiddleware
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import (InlineKeyboardMarkup, InlineKeyboardButton, 
-                          ReplyKeyboardMarkup, KeyboardButton)
+from aiogram.types import (InlineKeyboardMarkup, InlineKeyboardButton,
+                           ReplyKeyboardMarkup, KeyboardButton)
 from openai import AsyncOpenAI
 import g4f
 from g4f.client import Client
@@ -21,6 +21,7 @@ from deep_translator import GoogleTranslator
 # Импорты наших модулей
 from config import BotConfig
 from database import DatabaseManager
+
 # from payment import PaymentManager  # Раскомментировать когда настроите ЮKassa
 
 # Инициализация
@@ -167,13 +168,13 @@ def create_subscription_keyboard():
 def create_model_keyboard(current_model: str = None, is_premium: bool = False):
     """Создает клавиатуру для выбора модели"""
     keyboard = []
-    
+
     # Группируем модели по типам
     text_free_models = []
     text_premium_models = []
     image_free_models = []
     image_premium_models = []
-    
+
     for model_key, model_info in BotConfig.MODELS.items():
         if model_info["model_type"] == "text":
             if model_info["is_premium"]:
@@ -185,7 +186,7 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
                 image_premium_models.append((model_key, model_info))
             else:
                 image_free_models.append((model_key, model_info))
-    
+
     # Добавляем бесплатные текстовые модели
     if text_free_models:
         keyboard.append([InlineKeyboardButton(text="🆓 Бесплатные текстовые модели", callback_data="info_free_text")])
@@ -194,7 +195,7 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
             if model_key == current_model:
                 name = "✅ " + name
             keyboard.append([InlineKeyboardButton(text=name, callback_data=f"model_{model_key}")])
-    
+
     # Добавляем премиум текстовые модели
     if text_premium_models:
         keyboard.append([InlineKeyboardButton(text="💎 Премиум текстовые модели", callback_data="info_premium_text")])
@@ -205,19 +206,21 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
             elif model_key == current_model:
                 name = "✅ " + name
             keyboard.append([InlineKeyboardButton(text=name, callback_data=f"model_{model_key}")])
-    
+
     # Добавляем бесплатные модели генерации
     if image_free_models:
-        keyboard.append([InlineKeyboardButton(text="🎨 Бесплатная генерация изображений", callback_data="info_free_image")])
+        keyboard.append(
+            [InlineKeyboardButton(text="🎨 Бесплатная генерация изображений", callback_data="info_free_image")])
         for model_key, model_info in image_free_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if model_key == current_model:
                 name = "✅ " + name
             keyboard.append([InlineKeyboardButton(text=name, callback_data=f"model_{model_key}")])
-    
+
     # Добавляем премиум модели генерации
     if image_premium_models:
-        keyboard.append([InlineKeyboardButton(text="🎭 Премиум генерация изображений", callback_data="info_premium_image")])
+        keyboard.append(
+            [InlineKeyboardButton(text="🎭 Премиум генерация изображений", callback_data="info_premium_image")])
         for model_key, model_info in image_premium_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if not is_premium:
@@ -225,7 +228,7 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
             elif model_key == current_model:
                 name = "✅ " + name
             keyboard.append([InlineKeyboardButton(text=name, callback_data=f"model_{model_key}")])
-    
+
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
@@ -243,8 +246,8 @@ def create_subscription_plans_keyboard():
     """Создает клавиатуру с планами подписки"""
     keyboard = [
         [InlineKeyboardButton(text="🔥 Пробная неделя - 1₽", callback_data="buy_week_trial")],
-        [InlineKeyboardButton(text="📅 Месяц - 555₽", callback_data="buy_month")],
-        [InlineKeyboardButton(text="💰 3 месяца - 1111₽", callback_data="buy_3months")],
+        [InlineKeyboardButton(text="📅 Месяц - 299₽", callback_data="buy_month")],
+        [InlineKeyboardButton(text="💰 3 месяца - 799₽", callback_data="buy_3months")],
         [InlineKeyboardButton(text="↩️ Назад", callback_data="back_main")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -301,7 +304,7 @@ def get_system_message():
 
 def clean_markdown_for_telegram(text):
     """Очищает текст от проблемных символов для корректного парсинга Markdown в Telegram"""
-    
+
     def replace_math_symbols(formula):
         replacements = {
             r'\\frac\{([^}]+)\}\{([^}]+)\}': r'\1/\2',
@@ -309,21 +312,22 @@ def clean_markdown_for_telegram(text):
             r'\\approx': '≈', r'\\neq': '≠', r'\\leq': '≤', r'\\geq': '≥',
             r'\\infty': '∞', r'\\sum': '∑', r'\\sqrt': '√', r'\\pi': 'π'
         }
-        
+
         for pattern, replacement in replacements.items():
             formula = re.sub(pattern, replacement, formula)
         return formula.strip()
-    
+
     # Обрабатываем LaTeX формулы
-    text = re.sub(r'\\\[(.*?)\\\]', lambda m: f"\n```\n{replace_math_symbols(m.group(1))}\n```\n", text, flags=re.DOTALL)
+    text = re.sub(r'\\\[(.*?)\\\]', lambda m: f"\n```\n{replace_math_symbols(m.group(1))}\n```\n", text,
+                  flags=re.DOTALL)
     text = re.sub(r'\\\((.*?)\\\)', lambda m: f"`{replace_math_symbols(m.group(1))}`", text, flags=re.DOTALL)
-    
+
     # Убираем проблемные символы
     text = re.sub(r'\\(?![*_`\[\]()])', '', text)
     text = re.sub(r'###\s*([^\n]+)', r'\n\1\n', text)
     text = re.sub(r'[ \t]+', ' ', text)
     text = re.sub(r'\n{4,}', '\n\n', text)
-    
+
     return text.strip()
 
 
@@ -351,11 +355,11 @@ async def translate_with_ai(text: str) -> tuple[str, bool]:
         # Проверяем, нужен ли перевод
         cyrillic_chars = sum(1 for char in text if 'а' <= char.lower() <= 'я' or char.lower() in 'ё')
         total_letters = sum(1 for char in text if char.isalpha())
-        
+
         # Если текст уже на английском или мало букв
         if total_letters == 0 or (cyrillic_chars / total_letters) < 0.3:
             return text, False
-        
+
         # Переводим с помощью AI
         translate_prompt = f"""Переведи следующий текст с русского на английский. 
 Это описание для генерации изображения, поэтому перевод должен быть точным и подходящим для AI генерации.
@@ -365,15 +369,15 @@ async def translate_with_ai(text: str) -> tuple[str, bool]:
 
         history = [
             {
-                "role": "system", 
+                "role": "system",
                 "content": "Ты профессиональный переводчик. Переводи точно и кратко."
             },
             {
-                "role": "user", 
+                "role": "user",
                 "content": translate_prompt
             }
         ]
-        
+
         # Используем бесплатную модель для перевода
         completion = await asyncio.wait_for(
             text_client.chat.completions.create(
@@ -388,9 +392,9 @@ async def translate_with_ai(text: str) -> tuple[str, bool]:
             ),
             timeout=TIMEOUT
         )
-        
+
         translated = completion.choices[0].message.content.strip()
-        
+
         # Проверяем что получили нормальный перевод
         if translated and len(translated) > 0:
             # Убираем лишние кавычки если есть
@@ -399,7 +403,7 @@ async def translate_with_ai(text: str) -> tuple[str, bool]:
         else:
             # Fallback на простой переводчик
             return detect_and_translate_to_english(text)
-            
+
     except Exception as e:
         logging.error(f"Ошибка AI перевода: {e}")
         # Fallback на простой переводчик
@@ -451,15 +455,15 @@ async def process_message_with_ai(history: list, processing_msg: types.Message, 
         )
 
         model_info = BotConfig.MODELS.get(user_model, BotConfig.MODELS[BotConfig.DEFAULT_MODEL])
-        
+
         # Если это модель генерации изображений, используем дефолтную текстовую модель
         if model_info["model_type"] == "image":
             model_info = BotConfig.MODELS[BotConfig.DEFAULT_MODEL]
-        
+
         # Если есть изображения и модель не поддерживает vision, используем GPT-4o Mini
         if has_images and not model_info["supports_vision"]:
             model_info = BotConfig.MODELS["gpt-4o-mini"]
-        
+
         completion = await asyncio.wait_for(
             text_client.chat.completions.create(
                 extra_headers={
@@ -564,14 +568,14 @@ def get_limit_type_for_model(model_key: str) -> str:
     model_info = BotConfig.MODELS.get(model_key)
     if not model_info:
         return "free_text_requests"
-    
+
     # Для моделей генерации изображений возвращаем соответствующие лимиты
     if model_info["model_type"] == "image":
         if model_key == "flux":
             return "flux_generation"
         elif model_key == "midjourney":
             return "midjourney_generation"
-    
+
     # Для текстовых моделей
     return "premium_text_requests" if model_info["is_premium"] else "free_text_requests"
 
@@ -582,15 +586,15 @@ async def start_cmd(message: types.Message, state: FSMContext):
     """Команда /start с обработкой реферальных ссылок"""
     await state.clear()
     user_id = message.from_user.id
-    
+
     # Проверяем реферальную ссылку
     args = message.text.split()
     invited_by = None
-    
+
     if len(args) > 1 and args[1].startswith("ref"):
         referral_code = args[1]
         invited_by = await db_manager.get_user_by_referral_code(referral_code)
-        
+
         if invited_by and invited_by != user_id:
             # Создаем пользователя с реферальной ссылкой
             if not await db_manager.user_exists(user_id):
@@ -601,7 +605,7 @@ async def start_cmd(message: types.Message, state: FSMContext):
                     last_name=message.from_user.last_name,
                     invited_by=invited_by
                 )
-                
+
                 # Отправляем уведомление о реферальном бонусе
                 bonus_text = (
                     "\n🎉 **Реферальный бонус активирован!**\n"
@@ -614,7 +618,7 @@ async def start_cmd(message: types.Message, state: FSMContext):
             bonus_text = ""
     else:
         bonus_text = ""
-        
+
         # Создаем обычного пользователя
         if not await db_manager.user_exists(user_id):
             await db_manager.create_user(
@@ -682,11 +686,11 @@ async def handle_model_menu(message: types.Message, state: FSMContext):
     """Обработчик меню выбора модели"""
     data = await state.get_data()
     current_model = data.get("current_model", BotConfig.DEFAULT_MODEL)
-    
+
     # Проверяем подписку пользователя
     status = await db_manager.get_user_status(message.from_user.id)
     is_premium = status["subscription_type"] == "premium"
-    
+
     await message.answer(
         f"🤖 **Выбор AI модели**\n\n"
         f"Текущая модель: **{BotConfig.MODEL_NAMES[current_model]}**\n\n"
@@ -742,7 +746,7 @@ async def handle_limits_menu(message: types.Message):
                     period_text = ""
                     if limit_type == "midjourney_generation":
                         period_text = f" ({period})"
-                    
+
                     percentage = (used / limit * 100) if limit > 0 else 0
                     bar = "🟩" * min(10, int(percentage / 10)) + "⬜" * max(0, 10 - int(percentage / 10))
                     limits_text += f"{name}{period_text}: {used}/{limit}\n{bar}\n\n"
@@ -775,12 +779,12 @@ async def handle_generation_menu(message: types.Message):
 async def handle_referral_menu(message: types.Message):
     """Обработчик меню рефералов"""
     user_id = message.from_user.id
-    
+
     try:
         referral_stats = await db_manager.get_referral_stats(user_id)
         referral_code = referral_stats["referral_code"]
         invited_count = referral_stats["invited_count"]
-        
+
         referral_text = (
             "👥 **Реферальная программа**\n\n"
             f"🔗 Ваша реферальная ссылка:\n"
@@ -791,9 +795,9 @@ async def handle_referral_menu(message: types.Message):
             "• Вы получаете 1 день премиума\n\n"
             "📤 Поделитесь ссылкой с друзьями и получайте бонусы!"
         )
-        
+
         await message.answer(referral_text, parse_mode="Markdown")
-        
+
     except Exception as e:
         logging.error(f"Ошибка в меню рефералов для пользователя {user_id}: {e}")
         await message.answer("❌ Произошла ошибка при получении информации о рефералах.")
@@ -803,26 +807,26 @@ async def handle_referral_menu(message: types.Message):
 async def handle_subscription_menu(message: types.Message):
     """Обработчик меню подписки"""
     user_id = message.from_user.id
-    
+
     try:
         status = await db_manager.get_user_status(user_id)
         subscription_type = status["subscription_type"].title()
-        
+
         subscription_text = f"💎 **Подписка**\n\n"
         subscription_text += f"Текущий тариф: **{subscription_type}**\n"
-        
+
         if status["subscription_expires"]:
             expires = datetime.fromisoformat(status["subscription_expires"])
             subscription_text += f"📅 Действует до: {expires.strftime('%d.%m.%Y %H:%M')}\n"
-        
+
         subscription_text += "\n🚀 **Преимущества Premium:**\n"
         subscription_text += "• Доступ к премиум моделям (Gemini, Gemma, Kimi)\n"
         subscription_text += "• Увеличенные лимиты на все функции\n"
         subscription_text += "• Приоритетная обработка запросов\n\n"
-        
+
         if status["subscription_type"] == "free":
             subscription_text += "Выберите план подписки:"
-            
+
             await message.answer(
                 subscription_text,
                 reply_markup=create_subscription_plans_keyboard(),
@@ -831,7 +835,7 @@ async def handle_subscription_menu(message: types.Message):
         else:
             subscription_text += "Спасибо за использование Premium! 🙏"
             await message.answer(subscription_text, parse_mode="Markdown")
-            
+
     except Exception as e:
         logging.error(f"Ошибка в меню подписки для пользователя {user_id}: {e}")
         await message.answer("❌ Произошла ошибка при получении информации о подписке.")
@@ -860,7 +864,7 @@ async def handle_help_menu(message: types.Message):
         "• /start - Перезапустить бота\n\n"
         "❓ Если возникли вопросы - обратитесь к администратору."
     )
-    
+
     await message.answer(help_text, parse_mode="Markdown")
 
 
@@ -876,7 +880,7 @@ async def handle_model_selection(callback_query: types.CallbackQuery, state: FSM
         return
 
     model_info = BotConfig.MODELS[model_key]
-    
+
     # Проверяем доступ к премиум модели
     if model_info["is_premium"]:
         status = await db_manager.get_user_status(user_id)
@@ -936,7 +940,7 @@ async def handle_model_selection(callback_query: types.CallbackQuery, state: FSM
 async def handle_generation_callback(callback_query: types.CallbackQuery, state: FSMContext):
     """Обработчик callback'ов генерации"""
     generation_type = callback_query.data.split("_", 1)[1]
-    
+
     if generation_type == "flux":
         await state.update_data(waiting_for_flux_prompt=True)
         await callback_query.message.edit_text(
@@ -951,7 +955,7 @@ async def handle_generation_callback(callback_query: types.CallbackQuery, state:
             "Опишите изображение, которое хотите создать:",
             parse_mode="Markdown"
         )
-    
+
     await callback_query.answer()
 
 
@@ -960,27 +964,27 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
     """Обработчик покупки подписки"""
     subscription_type = callback_query.data.split("_", 1)[1]
     user_id = callback_query.from_user.id
-    
+
     # Проверяем валидность типа подписки
     if subscription_type not in BotConfig.SUBSCRIPTION_PRICES:
         await callback_query.answer("❌ Неизвестный тип подписки", show_alert=True)
         return
-    
+
     # Создаем клавиатуру с кнопкой оплаты
     keyboard = [
         [InlineKeyboardButton(
-            text="💳 Оплатить", 
+            text="💳 Оплатить",
             callback_data=f"pay_{subscription_type}"
         )],
         [InlineKeyboardButton(text="↩️ Назад", callback_data="back_subscription")]
     ]
-    
+
     prices = {
         "week_trial": "1₽ (пробная неделя)",
-        "month": "555₽ (месяц)",
-        "3months": "1111₽ (3 месяца)"
+        "month": "299₽ (месяц)",
+        "3months": "799₽ (3 месяца)"
     }
-    
+
     await callback_query.message.edit_text(
         f"💳 **Оплата подписки**\n\n"
         f"Выбран план: **{prices.get(subscription_type, 'Неизвестный')}**\n\n"
@@ -992,7 +996,7 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
         parse_mode="Markdown"
     )
-    
+
     await callback_query.answer()
 
 
@@ -1001,7 +1005,7 @@ async def handle_payment_creation(callback_query: types.CallbackQuery):
     """Обработчик создания платежа"""
     subscription_type = callback_query.data.split("_", 1)[1]
     user_id = callback_query.from_user.id
-    
+
     # Пока что заглушка, так как нужно настроить ЮKassa
     await callback_query.message.edit_text(
         f"💳 **Создание платежа...**\n\n"
@@ -1013,7 +1017,7 @@ async def handle_payment_creation(callback_query: types.CallbackQuery):
         f"💰 После настройки ЮKassa здесь будет автоматическая оплата!",
         parse_mode="Markdown"
     )
-    
+
     await callback_query.answer("Функция оплаты в разработке")
 
     # Код для интеграции с ЮKassa (раскомментировать после настройки):
@@ -1025,7 +1029,7 @@ async def handle_payment_creation(callback_query: types.CallbackQuery):
             subscription_type=subscription_type,
             return_url=f"https://t.me/{(await bot.get_me()).username}"
         )
-        
+
         if payment_info:
             keyboard = [
                 [InlineKeyboardButton(
@@ -1038,7 +1042,7 @@ async def handle_payment_creation(callback_query: types.CallbackQuery):
                 )],
                 [InlineKeyboardButton(text="↩️ Назад", callback_data="back_subscription")]
             ]
-            
+
             await callback_query.message.edit_text(
                 f"💳 **Ссылка для оплаты создана**\n\n"
                 f"💰 Сумма: {payment_info['amount']} ₽\n"
@@ -1055,7 +1059,7 @@ async def handle_payment_creation(callback_query: types.CallbackQuery):
                 "❌ Не удалось создать платеж. Попробуйте позже.",
                 parse_mode="Markdown"
             )
-            
+
     except Exception as e:
         logging.error(f"Ошибка создания платежа: {e}")
         await callback_query.answer("❌ Ошибка создания платежа", show_alert=True)
@@ -1066,15 +1070,15 @@ async def handle_payment_creation(callback_query: types.CallbackQuery):
 async def handle_payment_check(callback_query: types.CallbackQuery):
     """Обработчик проверки статуса платежа"""
     payment_id = callback_query.data.split("_", 2)[2]
-    
+
     # Заглушка для проверки платежа
     await callback_query.answer("Функция проверки платежа в разработке")
-    
+
     # Код для проверки статуса платежа (раскомментировать после настройки):
     """
     try:
         payment_status = await payment_manager.check_payment_status(payment_id)
-        
+
         if payment_status and payment_status["paid"]:
             # Платеж успешен, активируем подписку
             await callback_query.message.edit_text(
@@ -1090,7 +1094,7 @@ async def handle_payment_check(callback_query: types.CallbackQuery):
                 "⏳ Платеж еще не завершен. Попробуйте через несколько минут.",
                 show_alert=True
             )
-            
+
     except Exception as e:
         logging.error(f"Ошибка проверки платежа: {e}")
         await callback_query.answer("❌ Ошибка проверки платежа", show_alert=True)
@@ -1101,26 +1105,26 @@ async def handle_payment_check(callback_query: types.CallbackQuery):
 async def handle_back_to_subscription(callback_query: types.CallbackQuery):
     """Возврат к меню подписки"""
     user_id = callback_query.from_user.id
-    
+
     try:
         status = await db_manager.get_user_status(user_id)
         subscription_type = status["subscription_type"].title()
-        
+
         subscription_text = f"💎 **Подписка**\n\n"
         subscription_text += f"Текущий тариф: **{subscription_type}**\n"
-        
+
         if status["subscription_expires"]:
             expires = datetime.fromisoformat(status["subscription_expires"])
             subscription_text += f"📅 Действует до: {expires.strftime('%d.%m.%Y %H:%M')}\n"
-        
+
         subscription_text += "\n🚀 **Преимущества Premium:**\n"
         subscription_text += "• Доступ к премиум моделям (Gemini, Gemma, Kimi)\n"
         subscription_text += "• Увеличенные лимиты на все функции\n"
         subscription_text += "• Приоритетная обработка запросов\n\n"
-        
+
         if status["subscription_type"] == "free":
             subscription_text += "Выберите план подписки:"
-            
+
             await callback_query.message.edit_text(
                 subscription_text,
                 reply_markup=create_subscription_plans_keyboard(),
@@ -1129,7 +1133,7 @@ async def handle_back_to_subscription(callback_query: types.CallbackQuery):
         else:
             subscription_text += "Спасибо за использование Premium! 🙏"
             await callback_query.message.edit_text(subscription_text, parse_mode="Markdown")
-            
+
     except Exception as e:
         logging.error(f"Ошибка в меню подписки: {e}")
         await callback_query.answer("❌ Ошибка", show_alert=True)
@@ -1147,15 +1151,15 @@ async def handle_back_to_main(callback_query: types.CallbackQuery):
 async def handle_photo(message: types.Message, state: FSMContext):
     """Обработчик изображений"""
     user_id = message.from_user.id
-    
+
     # Проверяем лимит на анализ изображений
     limit_check = await db_manager.check_limit(user_id, "photo_analysis")
-    
+
     if not limit_check["allowed"]:
         await message.answer(
             f"❌ **Лимит превышен**\n\n"
-            f"🖼 Анализ изображений: {limit_check['used']}/{limit_check['limit']}\n",
-            parse_mode="Markdown"
+            f"🖼 Анализ изображений: {limit_check['used']}/{limit_check['limit']}\n"
+        parse_mode = "Markdown"
         )
         return
 
@@ -1208,92 +1212,94 @@ async def handle_photo(message: types.Message, state: FSMContext):
             f"• Сократите длину сообщения\n"
             f"• Используйте /new для очистки контекста"
         )
-            parse_mode="Markdown"
-        )
-        return
+        parse_mode = "Markdown"
+    )
+    return
 
-    # Используем лимит
-    if not await db_manager.use_limit(user_id, "photo_analysis"):
-        await message.answer("❌ Не удалось использовать лимит. Попробуйте позже.")
-        return
 
-    remaining = limit_check["remaining"] - 1
-    processing_text = f"🖼 Анализирую изображение... (осталось: {remaining}/{limit_check['limit']})"
-    processing_msg = await message.answer(processing_text)
+# Используем лимит
+if not await db_manager.use_limit(user_id, "photo_analysis"):
+    await message.answer("❌ Не удалось использовать лимит. Попробуйте позже.")
+    return
+
+remaining = limit_check["remaining"] - 1
+processing_text = f"🖼 Анализирую изображение... (осталось: {remaining}/{limit_check['limit']})"
+processing_msg = await message.answer(processing_text)
+
+try:
+    photo = message.photo[-1]
+    base64_image, mime_type = await download_image_as_base64(photo.file_id)
+
+    data = await state.get_data()
+    history = data.get("history", [])
+    current_model = data.get("current_model", BotConfig.DEFAULT_MODEL)
+
+    if not history:
+        history.append(get_system_message())
+
+    user_message = {
+        "role": "user",
+        "content": [
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{mime_type};base64,{base64_image}",
+                    "detail": "high"
+                }
+            }
+        ]
+    }
+
+    if message.caption:
+        user_message["content"].append({"type": "text", "text": message.caption})
+    else:
+        user_message["content"].append({
+            "type": "text",
+            "text": "Проанализируй это изображение подробно. Если это задача или содержит текст - прочитай и реши."
+        })
+
+    history.append(user_message)
+
+    if len(history) > MAX_HISTORY * 2 + 1:
+        system_msg = history[0] if history[0]["role"] == "system" else None
+        recent_history = history[-(MAX_HISTORY * 2):]
+        if system_msg:
+            history = [system_msg] + recent_history
+        else:
+            history = recent_history
+
+    response_text = await process_message_with_ai(history, processing_msg, current_model)
+
+    history.append({"role": "assistant", "content": response_text})
+    await state.update_data(history=history)
 
     try:
-        photo = message.photo[-1]
-        base64_image, mime_type = await download_image_as_base64(photo.file_id)
+        await bot.delete_message(message.chat.id, processing_msg.message_id)
+    except Exception:
+        pass
 
-        data = await state.get_data()
-        history = data.get("history", [])
-        current_model = data.get("current_model", BotConfig.DEFAULT_MODEL)
+    model_name = BotConfig.MODEL_NAMES[current_model]
+    status = await db_manager.get_user_status(user_id)
+    remaining_now = status["limits"]["photo_analysis"]["remaining"]
 
-        if not history:
-            history.append(get_system_message())
+    full_response = f"🤖 {model_name}\n📊 Анализ изображений: {remaining_now}/{limit_check['limit']}\n\n" + clean_markdown_for_telegram(
+        response_text)
+    await send_long_message(message, full_response)
 
-        user_message = {
-            "role": "user",
-            "content": [
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{mime_type};base64,{base64_image}",
-                        "detail": "high"
-                    }
-                }
-            ]
-        }
+except Exception as e:
+    try:
+        await bot.delete_message(message.chat.id, processing_msg.message_id)
+    except Exception:
+        pass
 
-        if message.caption:
-            user_message["content"].append({"type": "text", "text": message.caption})
-        else:
-            user_message["content"].append({
-                "type": "text",
-                "text": "Проанализируй это изображение подробно. Если это задача или содержит текст - прочитай и реши."
-            })
-
-        history.append(user_message)
-
-        if len(history) > MAX_HISTORY * 2 + 1:
-            system_msg = history[0] if history[0]["role"] == "system" else None
-            recent_history = history[-(MAX_HISTORY * 2):]
-            if system_msg:
-                history = [system_msg] + recent_history
-            else:
-                history = recent_history
-
-        response_text = await process_message_with_ai(history, processing_msg, current_model)
-
-        history.append({"role": "assistant", "content": response_text})
-        await state.update_data(history=history)
-
-        try:
-            await bot.delete_message(message.chat.id, processing_msg.message_id)
-        except Exception:
-            pass
-
-        model_name = BotConfig.MODEL_NAMES[current_model]
-        status = await db_manager.get_user_status(user_id)
-        remaining_now = status["limits"]["photo_analysis"]["remaining"]
-
-        full_response = f"🤖 {model_name}\n📊 Анализ изображений: {remaining_now}/{limit_check['limit']}\n\n" + clean_markdown_for_telegram(response_text)
-        await send_long_message(message, full_response)
-
-    except Exception as e:
-        try:
-            await bot.delete_message(message.chat.id, processing_msg.message_id)
-        except Exception:
-            pass
-
-        logging.error(f"Ошибка при обработке изображения: {e}")
-        await message.answer(
-            f"❌ Не удалось проанализировать изображение\n"
-            f"💡 Возможные решения:\n"
-            f"• Попробуйте отправить изображение в лучшем качестве\n"
-            f"• Убедитесь, что изображение не слишком большое\n"
-            f"• Используйте /new для очистки контекста"
-        )
+    logging.error(f"Ошибка при обработке изображения: {e}")
+    await message.answer(
+        f"❌ Не удалось проанализировать изображение\n"
+        f"💡 Возможные решения:\n"
+        f"• Попробуйте отправить изображение в лучшем качестве\n"
+        f"• Убедитесь, что изображение не слишком большое\n"
+        f"• Используйте /new для очистки контекста"
+    )
 
 
 @dp.message(F.document)
@@ -1312,7 +1318,7 @@ async def handle_document(message: types.Message, state: FSMContext):
 
 # === ОБРАБОТЧИКИ ТЕКСТА ===
 @dp.message(F.text & ~F.text.startswith('/') & ~F.text.in_([
-    "🤖 Выбрать модель", "📊 Мои лимиты", "🎨 Генерация", 
+    "🤖 Выбрать модель", "📊 Мои лимиты", "🎨 Генерация",
     "👥 Рефералы", "💎 Подписка", "ℹ️ Помощь"
 ]))
 async def handle_text(message: types.Message, state: FSMContext):
@@ -1326,7 +1332,7 @@ async def handle_text(message: types.Message, state: FSMContext):
         await state.update_data(waiting_for_flux_prompt=False)
         await handle_flux_generation(message, user_text)
         return
-    
+
     if data.get("waiting_for_mj_prompt"):
         await state.update_data(waiting_for_mj_prompt=False)
         await handle_midjourney_generation(message, user_text)
@@ -1336,10 +1342,10 @@ async def handle_text(message: types.Message, state: FSMContext):
     logging.info(f"Пользователь {user_id}: {user_text[:50]}...")
 
     current_model = data.get("current_model", BotConfig.DEFAULT_MODEL)
-    
+
     # Проверяем тип модели
     model_info = BotConfig.MODELS.get(current_model, BotConfig.MODELS[BotConfig.DEFAULT_MODEL])
-    
+
     # Если выбрана модель генерации изображений, направляем пользователя
     if model_info["model_type"] == "image":
         if current_model == "flux":
@@ -1362,7 +1368,7 @@ async def handle_text(message: types.Message, state: FSMContext):
 
     # Обычная обработка для текстовых моделей
     limit_type = get_limit_type_for_model(current_model)
-    
+
     # Проверяем лимит
     limit_check = await db_manager.check_limit(user_id, limit_type)
     if not limit_check["allowed"]:
@@ -1370,64 +1376,11 @@ async def handle_text(message: types.Message, state: FSMContext):
             limit_text = "💎 Премиум модели"
         else:
             limit_text = "🆓 Бесплатные модели"
-            
+
         await message.answer(
             f"❌ **Лимит превышен**\n\n"
             f"{limit_text}: {limit_check['used']}/{limit_check['limit']}\n"
             f"💎 Для увеличения лимитов используйте меню 'Подписка'",
-            parse_mode="Markdown"
-        )
-        return
-
-    processing_msg = await message.answer("🧠 Помощник обрабатывает сообщение...")
-
-    try:
-        history = data.get("history", [])
-
-        if not history:
-            history.append(get_system_message())
-
-        history.append({"role": "user", "content": user_text})
-
-        if len(history) > MAX_HISTORY * 2 + 1:
-            system_msg = history[0] if history[0]["role"] == "system" else None
-            recent_history = history[-(MAX_HISTORY * 2):]
-            if system_msg:
-                history = [system_msg] + recent_history
-            else:
-                history = recent_history
-
-        response_text = await process_message_with_ai(history, processing_msg, current_model)
-
-        history.append({"role": "assistant", "content": response_text})
-        await state.update_data(history=history)
-
-        # Используем лимит
-        await db_manager.use_limit(user_id, limit_type)
-
-        try:
-            await bot.delete_message(message.chat.id, processing_msg.message_id)
-        except Exception:
-            pass
-
-        model_name = BotConfig.MODEL_NAMES[current_model]
-        full_response = f"🤖 {model_name}\n\n" + clean_markdown_for_telegram(response_text)
-        await send_long_message(message, full_response)
-
-    except Exception as e:
-        try:
-            await bot.delete_message(message.chat.id, processing_msg.message_id)
-        except Exception:
-            pass
-
-        logging.error(f"Ошибка при запросе к AI: {e}")
-        await message.answer(
-            f"❌ Не удалось получить ответ от AI\n"
-            f"💡 Возможные решения:\n"
-            f"• Подождите немного и повторите\n"
-            f"• Сократите длину сообщения\n"
-            f"• Используйте /new для очистки контекста"
-        )
             parse_mode="Markdown"
         )
         return
@@ -1486,10 +1439,10 @@ async def handle_text(message: types.Message, state: FSMContext):
 async def handle_flux_generation(message: types.Message, prompt: str):
     """Обработчик генерации Flux"""
     user_id = message.from_user.id
-    
+
     # Проверяем лимит
     limit_check = await db_manager.check_limit(user_id, "flux_generation")
-    
+
     if not limit_check["allowed"]:
         await message.answer(
             f"❌ **Лимит превышен**\n\n"
@@ -1506,20 +1459,20 @@ async def handle_flux_generation(message: types.Message, prompt: str):
 
     # Показываем процесс перевода и генерации
     translation_msg = await message.answer("🔄 Подготавливаю промпт для генерации...")
-    
+
     try:
         # Переводим промпт
         english_prompt, was_translated = await translate_with_ai(prompt)
-        
+
         await bot.edit_message_text(
             f"🎨 Генерирую изображение...\n"
             f"{'🌍 Промпт переведен с помощью AI' if was_translated else '✅ Промпт на английском'}",
             chat_id=translation_msg.chat.id,
             message_id=translation_msg.message_id
         )
-        
+
         await bot.send_chat_action(message.chat.id, "upload_photo")
-        
+
         url, final_prompt, _ = await generate_image(prompt, "flux")
 
         status = await db_manager.get_user_status(user_id)
@@ -1538,11 +1491,11 @@ async def handle_flux_generation(message: types.Message, prompt: str):
             caption += f"🌍 AI перевод: `{final_prompt}`\n\n"
         else:
             caption += f"📝 Промпт: `{prompt}`\n\n"
-        
+
         caption += f"🎨 Flux: {remaining}/{limit_total} осталось (неделя)"
 
         await message.answer_photo(url, caption=caption, parse_mode="Markdown")
-        
+
     except Exception as e:
         try:
             await bot.delete_message(translation_msg.chat.id, translation_msg.message_id)
@@ -1555,10 +1508,10 @@ async def handle_flux_generation(message: types.Message, prompt: str):
 async def handle_midjourney_generation(message: types.Message, prompt: str):
     """Обработчик генерации Midjourney"""
     user_id = message.from_user.id
-    
+
     # Проверяем лимит
     limit_check = await db_manager.check_limit(user_id, "midjourney_generation")
-    
+
     if not limit_check["allowed"]:
         period_text = "день" if limit_check["period_type"] == "daily" else "неделя"
         await message.answer(
@@ -1576,11 +1529,11 @@ async def handle_midjourney_generation(message: types.Message, prompt: str):
 
     # Показываем процесс перевода и генерации
     translation_msg = await message.answer("🔄 Подготавливаю промпт для Midjourney...")
-    
+
     try:
         # Переводим промпт
         english_prompt, was_translated = await translate_with_ai(prompt)
-        
+
         await bot.edit_message_text(
             f"🎭 Midjourney генерирует изображение...\n"
             f"{'🌍 Промпт переведен с помощью AI' if was_translated else '✅ Промпт на английском'}\n\n"
@@ -1588,9 +1541,9 @@ async def handle_midjourney_generation(message: types.Message, prompt: str):
             chat_id=translation_msg.chat.id,
             message_id=translation_msg.message_id
         )
-        
+
         url, final_prompt, _ = await generate_image(prompt, "midjourney-6.0")
-        
+
         # Удаляем сообщение о процессе
         try:
             await bot.delete_message(translation_msg.chat.id, translation_msg.message_id)
@@ -1608,11 +1561,11 @@ async def handle_midjourney_generation(message: types.Message, prompt: str):
             caption += f"🌍 AI перевод: `{final_prompt}`\n\n"
         else:
             caption += f"📝 Промпт: `{prompt}`\n\n"
-            
+
         caption += f"🎭 MJ: {remaining}/{limit_total} осталось ({period_text})"
 
         await message.answer_photo(url, caption=caption, parse_mode="Markdown")
-        
+
     except Exception as e:
         try:
             await bot.delete_message(translation_msg.chat.id, translation_msg.message_id)
@@ -1684,18 +1637,18 @@ async def admin_user_cmd(message: types.Message):
     try:
         target_user_id = int(args[1])
         status = await db_manager.get_user_status(target_user_id)
-        
+
         info_text = f"👤 **Пользователь {target_user_id}**\n\n"
         info_text += f"Имя: {status.get('first_name', 'Не указано')}\n"
         info_text += f"Username: @{status.get('username', 'Нет')}\n"
         info_text += f"Тариф: {status['subscription_type']}\n"
-        
+
         if status['subscription_expires']:
             expires = datetime.fromisoformat(status['subscription_expires'])
             info_text += f"Подписка до: {expires.strftime('%d.%m.%Y %H:%M')}\n"
-        
+
         await message.answer(info_text, parse_mode="Markdown")
-        
+
     except ValueError:
         await message.answer("❌ Неверный ID пользователя")
     except Exception as e:
@@ -1716,10 +1669,10 @@ async def admin_premium_cmd(message: types.Message):
     try:
         target_user_id = int(args[1])
         days = int(args[2])
-        
+
         await db_manager.set_subscription(target_user_id, "premium", days)
         await message.answer(f"✅ Пользователю {target_user_id} выдан премиум на {days} дней")
-        
+
     except ValueError:
         await message.answer("❌ Неверные параметры")
     except Exception as e:
