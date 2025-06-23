@@ -1,59 +1,25 @@
 import sqlite3
-import asyncpg
-import asyncio
 import logging
+import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 import json
-import os
 from contextlib import asynccontextmanager
 
 
 class DatabaseManager:
-    def __init__(self, db_type: str = "sqlite", **kwargs):
-        """
-        Инициализация менеджера базы данных
-
-        Args:
-            db_type: Тип БД ("sqlite" или "postgresql")
-            **kwargs: Параметры подключения для PostgreSQL
-        """
-        self.db_type = db_type
-        self.db_params = kwargs
-
-        # Лимиты для разных типов подписки
-        self.DEFAULT_LIMITS = {
-            "photo_analysis": 7,
-            "flux_generation": 5,
-            "midjourney_generation": 3,
-            "text_requests": 50
-        }
-
-        self.PREMIUM_LIMITS = {
-            "photo_analysis": 50,
-            "flux_generation": 25,
-            "midjourney_generation": 15,
-            "text_requests": 500
-        }
-
-        # VIP пользователи (можно хранить в коде для быстрого доступа)
-        self.VIP_USERS = set()
+    def __init__(self, db_path: str = "bot.db"):
+        """Инициализация менеджера базы данных SQLite"""
+        self.db_path = db_path
+        
+        # Импортируем лимиты из конфига
+        from config import BotConfig
+        self.FREE_LIMITS = BotConfig.FREE_LIMITS
+        self.PREMIUM_LIMITS = BotConfig.PREMIUM_LIMITS
 
     async def init_database(self):
         """Инициализация базы данных и создание таблиц"""
-        if self.db_type == "sqlite":
-            await self._init_sqlite()
-        elif self.db_type == "postgresql":
-            await self._init_postgresql()
-        else:
-            raise ValueError(f"Неподдерживаемый тип БД: {self.db_type}")
-
-    async def _init_sqlite(self):
-        """Инициализация SQLite"""
-        db_path = self.db_params.get('database', 'bot_limits.db')
-
-        # Создаем подключение и таблицы
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         # Таблица пользователей
@@ -65,626 +31,492 @@ class DatabaseManager:
                 last_name TEXT NULL,
                 subscription_type TEXT DEFAULT 'free',
                 subscription_expires TIMESTAMP NULL,
+                referral_code TEXT UNIQUE,
+                invited_by INTEGER NULL,
+                referral_bonus_expires TIMESTAMP NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (invited_by) REFERENCES users (user_id)
             )
         ''')
 
-        # Таблица использования лимитов
+        # Таблица использования лимитов (дневные/недельные)
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS daily_usage (
+            CREATE TABLE IF NOT EXISTS usage_limits (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
-                date DATE,
                 limit_type TEXT,
+                period_start DATE,
+                period_end DATE,
                 usage_count INTEGER DEFAULT 0,
+                period_type TEXT DEFAULT 'daily',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, date, limit_type),
+                UNIQUE(user_id, limit_type, period_start),
                 FOREIGN KEY (user_id) REFERENCES users (user_id)
             )
         ''')
 
-        # Таблица статистики
+        # Таблица рефералов
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS usage_stats (
+            CREATE TABLE IF NOT EXISTS referrals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                inviter_id INTEGER,
+                invited_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                bonus_given BOOLEAN DEFAULT FALSE,
+                FOREIGN KEY (inviter_id) REFERENCES users (user_id),
+                FOREIGN KEY (invited_id) REFERENCES users (user_id)
+            )
+        ''')
+
+        # Таблица платежей
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS payments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
-                action_type TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                metadata TEXT NULL,
+                payment_id TEXT UNIQUE,
+                amount INTEGER,
+                currency TEXT DEFAULT 'RUB',
+                status TEXT DEFAULT 'pending',
+                subscription_type TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (user_id)
             )
         ''')
 
         # Индексы для оптимизации
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_usage_stats_user_timestamp ON usage_stats(user_id, timestamp)')
-        cursor.execute(
-            'CREATE INDEX IF NOT EXISTS idx_users_subscription ON users(subscription_type, subscription_expires)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_usage_user_period ON usage_limits(user_id, period_start)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_referral ON users(referral_code)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_referrals_inviter ON referrals(inviter_id)')
 
         conn.commit()
         conn.close()
-
         logging.info("SQLite база данных инициализирована")
 
-    async def _init_postgresql(self):
-        """Инициализация PostgreSQL"""
-        conn = await asyncpg.connect(**self.db_params)
-
-        # Таблица пользователей
-        await conn.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                user_id BIGINT PRIMARY KEY,
-                username VARCHAR(100) NULL,
-                first_name VARCHAR(100) NULL,
-                last_name VARCHAR(100) NULL,
-                subscription_type VARCHAR(20) DEFAULT 'free',
-                subscription_expires TIMESTAMP NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # Таблица использования лимитов
-        await conn.execute('''
-            CREATE TABLE IF NOT EXISTS daily_usage (
-                id SERIAL PRIMARY KEY,
-                user_id BIGINT,
-                date DATE,
-                limit_type VARCHAR(50),
-                usage_count INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_id, date, limit_type),
-                FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
-            )
-        ''')
-
-        # Таблица статистики
-        await conn.execute('''
-            CREATE TABLE IF NOT EXISTS usage_stats (
-                id SERIAL PRIMARY KEY,
-                user_id BIGINT,
-                action_type VARCHAR(50),
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                metadata JSONB NULL,
-                FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
-            )
-        ''')
-
-        # Индексы для оптимизации
-        await conn.execute('CREATE INDEX IF NOT EXISTS idx_daily_usage_user_date ON daily_usage(user_id, date)')
-        await conn.execute(
-            'CREATE INDEX IF NOT EXISTS idx_usage_stats_user_timestamp ON usage_stats(user_id, timestamp)')
-        await conn.execute(
-            'CREATE INDEX IF NOT EXISTS idx_users_subscription ON users(subscription_type, subscription_expires)')
-
-        # Дополнительные индексы для больших нагрузок
-        await conn.execute('CREATE INDEX IF NOT EXISTS idx_daily_usage_date ON daily_usage(date)')
-        await conn.execute('CREATE INDEX IF NOT EXISTS idx_usage_stats_timestamp ON usage_stats(timestamp)')
-
-        await conn.close()
-
-        logging.info("PostgreSQL база данных инициализирована")
-
-    @asynccontextmanager
-    async def get_connection(self):
+    def get_connection(self):
         """Получение подключения к БД"""
-        if self.db_type == "sqlite":
-            conn = sqlite3.connect(self.db_params.get('database', 'bot_limits.db'))
-            conn.row_factory = sqlite3.Row  # Для доступа по именам колонок
-            try:
-                yield conn
-            finally:
-                conn.close()
-        elif self.db_type == "postgresql":
-            conn = await asyncpg.connect(**self.db_params)
-            try:
-                yield conn
-            finally:
-                await conn.close()
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def generate_referral_code(self, user_id: int) -> str:
+        """Генерирует уникальный реферальный код"""
+        return f"REF{user_id}{str(uuid.uuid4())[:8].upper()}"
+
+    async def create_user(self, user_id: int, username: str = None, first_name: str = None, 
+                         last_name: str = None, invited_by: int = None):
+        """Создает нового пользователя"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        referral_code = self.generate_referral_code(user_id)
+        
+        try:
+            cursor.execute('''
+                INSERT INTO users (user_id, username, first_name, last_name, referral_code, invited_by)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (user_id, username, first_name, last_name, referral_code, invited_by))
+            
+            # Если пользователь приглашен по реферальной ссылке
+            if invited_by:
+                # Добавляем запись в таблицу рефералов
+                cursor.execute('''
+                    INSERT INTO referrals (inviter_id, invited_id)
+                    VALUES (?, ?)
+                ''', (invited_by, user_id))
+                
+                # Даем бонус приглашенному (удвоенные лимиты на день)
+                referral_bonus_expires = datetime.now() + timedelta(days=1)
+                cursor.execute('''
+                    UPDATE users SET referral_bonus_expires = ? WHERE user_id = ?
+                ''', (referral_bonus_expires, user_id))
+                
+                # Даем премиум на день приглашающему
+                inviter_premium_expires = datetime.now() + timedelta(days=1)
+                cursor.execute('''
+                    UPDATE users SET 
+                        subscription_type = CASE 
+                            WHEN subscription_type = 'free' THEN 'premium'
+                            ELSE subscription_type 
+                        END,
+                        subscription_expires = CASE 
+                            WHEN subscription_type = 'free' THEN ?
+                            WHEN subscription_expires IS NULL OR subscription_expires < ? THEN ?
+                            ELSE datetime(subscription_expires, '+1 day')
+                        END
+                    WHERE user_id = ?
+                ''', (inviter_premium_expires, inviter_premium_expires, inviter_premium_expires, invited_by))
+                
+                # Отмечаем что бонус выдан
+                cursor.execute('''
+                    UPDATE referrals SET bonus_given = TRUE 
+                    WHERE inviter_id = ? AND invited_id = ?
+                ''', (invited_by, user_id))
+            
+            conn.commit()
+            logging.info(f"Создан новый пользователь {user_id}" + (f" по реферальной ссылке от {invited_by}" if invited_by else ""))
+            
+        except sqlite3.IntegrityError:
+            logging.warning(f"Пользователь {user_id} уже существует")
+        finally:
+            conn.close()
+
+    async def get_user_by_referral_code(self, referral_code: str) -> Optional[int]:
+        """Получает ID пользователя по реферальному коду"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT user_id FROM users WHERE referral_code = ?', (referral_code,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        return result['user_id'] if result else None
 
     async def user_exists(self, user_id: int) -> bool:
-        """Проверяет существование пользователя - ТОЛЬКО SELECT!"""
-        try:
-            logging.debug(f"Проверка существования пользователя {user_id}")
+        """Проверяет существование пользователя"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT 1 FROM users WHERE user_id = ? LIMIT 1', (user_id,))
+        result = cursor.fetchone() is not None
+        conn.close()
+        
+        return result
 
-            async with self.get_connection() as conn:
-                if self.db_type == "sqlite":
-                    cursor = conn.cursor()
-                    cursor.execute('SELECT 1 FROM users WHERE user_id = ? LIMIT 1', (user_id,))
-                    result = cursor.fetchone() is not None
-                else:
-                    result = await conn.fetchval('SELECT 1 FROM users WHERE user_id = $1 LIMIT 1', user_id)
-                    result = result is not None
+    async def update_user_info(self, user_id: int, username: str = None, 
+                              first_name: str = None, last_name: str = None):
+        """Обновляет информацию о пользователе"""
+        if not await self.user_exists(user_id):
+            await self.create_user(user_id, username, first_name, last_name)
+            return
+            
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        update_parts = []
+        params = []
+        
+        if username is not None:
+            update_parts.append("username = ?")
+            params.append(username)
+        if first_name is not None:
+            update_parts.append("first_name = ?")
+            params.append(first_name)
+        if last_name is not None:
+            update_parts.append("last_name = ?")
+            params.append(last_name)
+            
+        if update_parts:
+            update_parts.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(user_id)
+            
+            query = f"UPDATE users SET {', '.join(update_parts)} WHERE user_id = ?"
+            cursor.execute(query, params)
+            conn.commit()
+            
+        conn.close()
 
-            logging.debug(f"Пользователь {user_id} {'найден' if result else 'не найден'}")
-            return result
-
-        except Exception as e:
-            logging.error(f"Ошибка проверки существования пользователя {user_id}: {e}")
-            return False
-
-    async def update_user_info_selective(self, user_id: int, username: str = None, first_name: str = None,
-                                         last_name: str = None):
-        """Обновляет информацию о пользователе, обновляя только переданные поля"""
-        try:
-            logging.debug(
-                f"Селективное обновление пользователя {user_id}: username={username}, first_name={first_name}, last_name={last_name}")
-
-            async with self.get_connection() as conn:
-                if self.db_type == "sqlite":
-                    cursor = conn.cursor()
-
-                    # Проверяем, существует ли пользователь
-                    cursor.execute('SELECT user_id FROM users WHERE user_id = ?', (user_id,))
-                    exists = cursor.fetchone()
-
-                    if exists:
-                        # Строим динамический запрос для обновления только переданных полей
-                        update_parts = []
-                        params = []
-
-                        if username is not None:
-                            update_parts.append("username = ?")
-                            params.append(username)
-                        if first_name is not None:
-                            update_parts.append("first_name = ?")
-                            params.append(first_name)
-                        if last_name is not None:
-                            update_parts.append("last_name = ?")
-                            params.append(last_name)
-
-                        if update_parts:  # Обновляем только если есть что обновлять
-                            update_parts.append("updated_at = CURRENT_TIMESTAMP")
-                            params.append(user_id)
-
-                            query = f"UPDATE users SET {', '.join(update_parts)} WHERE user_id = ?"
-                            cursor.execute(query, params)
-                            logging.debug(f"Обновлен существующий пользователь {user_id}")
-                    else:
-                        # Создаем нового пользователя
-                        cursor.execute('''
-                            INSERT INTO users (user_id, username, first_name, last_name, subscription_type, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, 'free', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                        ''', (user_id, username, first_name, last_name))
-                        logging.debug(f"Создан новый пользователь {user_id}")
-
-                    conn.commit()
-
-                else:  # PostgreSQL
-                    # Проверяем существование пользователя
-                    exists = await conn.fetchval('SELECT 1 FROM users WHERE user_id = $1', user_id)
-
-                    if exists:
-                        # Строим динамический запрос для PostgreSQL
-                        update_parts = []
-                        params = [user_id]  # user_id всегда первый параметр
-                        param_num = 2
-
-                        if username is not None:
-                            update_parts.append(f"username = ${param_num}")
-                            params.append(username)
-                            param_num += 1
-                        if first_name is not None:
-                            update_parts.append(f"first_name = ${param_num}")
-                            params.append(first_name)
-                            param_num += 1
-                        if last_name is not None:
-                            update_parts.append(f"last_name = ${param_num}")
-                            params.append(last_name)
-                            param_num += 1
-
-                        if update_parts:  # Обновляем только если есть что обновлять
-                            update_parts.append("updated_at = CURRENT_TIMESTAMP")
-                            query = f"UPDATE users SET {', '.join(update_parts)} WHERE user_id = $1"
-                            await conn.execute(query, *params)
-                            logging.debug(f"Обновлен существующий пользователь {user_id}")
-                    else:
-                        # Создаем нового пользователя
-                        await conn.execute('''
-                            INSERT INTO users (user_id, username, first_name, last_name, subscription_type, created_at, updated_at)
-                            VALUES ($1, $2, $3, $4, 'free', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                        ''', user_id, username, first_name, last_name)
-                        logging.debug(f"Создан новый пользователь {user_id}")
-
-        except Exception as e:
-            logging.error(f"Ошибка обновления пользователя {user_id}: {e}")
-            raise
+    def get_period_dates(self, period_type: str = 'daily') -> tuple:
+        """Получает даты начала и конца периода"""
+        now = datetime.now()
+        
+        if period_type == 'daily':
+            start = now.date()
+            end = start
+        elif period_type == 'weekly':
+            # Неделя начинается с понедельника
+            days_since_monday = now.weekday()
+            start = (now - timedelta(days=days_since_monday)).date()
+            end = start + timedelta(days=6)
+        else:
+            raise ValueError(f"Неподдерживаемый период: {period_type}")
+            
+        return start, end
 
     async def get_user_limits(self, user_id: int) -> Dict[str, int]:
-        """Получает лимиты пользователя в зависимости от подписки"""
-        # Проверяем VIP
-        if user_id in self.VIP_USERS:
-            return {key: 999999 for key in self.DEFAULT_LIMITS.keys()}
-
-        async with self.get_connection() as conn:
-            if self.db_type == "sqlite":
-                cursor = conn.cursor()
-                cursor.execute(
-                    'SELECT subscription_type, subscription_expires FROM users WHERE user_id = ?',
-                    (user_id,)
-                )
-                row = cursor.fetchone()
-            else:
-                row = await conn.fetchrow(
-                    'SELECT subscription_type, subscription_expires FROM users WHERE user_id = $1',
-                    user_id
-                )
-
-        if not row:
-            # Пользователь не найден, возвращаем базовые лимиты
-            return self.DEFAULT_LIMITS.copy()
-
-        subscription_type = row['subscription_type']
-        subscription_expires = row['subscription_expires']
-
-        # Проверяем VIP из БД
-        if subscription_type == 'vip':
-            return {key: 999999 for key in self.DEFAULT_LIMITS.keys()}
-
-        # Проверяем Premium
-        if subscription_type == 'premium':
-            if subscription_expires and subscription_expires > datetime.now():
-                return self.PREMIUM_LIMITS.copy()
+        """Получает лимиты пользователя"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT subscription_type, subscription_expires, referral_bonus_expires 
+            FROM users WHERE user_id = ?
+        ''', (user_id,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if not result:
+            return self.FREE_LIMITS.copy()
+            
+        subscription_type = result['subscription_type']
+        subscription_expires = result['subscription_expires']
+        referral_bonus_expires = result['referral_bonus_expires']
+        
+        # Проверяем действительность подписки
+        is_premium = False
+        if subscription_type == 'premium' and subscription_expires:
+            if datetime.fromisoformat(subscription_expires) > datetime.now():
+                is_premium = True
             else:
                 # Подписка истекла, сбрасываем
-                await self.set_subscription(user_id, 'free')
+                await self.reset_subscription(user_id)
+        
+        # Проверяем реферальный бонус
+        has_referral_bonus = False
+        if referral_bonus_expires:
+            if datetime.fromisoformat(referral_bonus_expires) > datetime.now():
+                has_referral_bonus = True
+        
+        # Определяем лимиты
+        if is_premium:
+            limits = self.PREMIUM_LIMITS.copy()
+        else:
+            limits = self.FREE_LIMITS.copy()
+            
+        # Применяем реферальный бонус (удваиваем лимиты)
+        if has_referral_bonus and not is_premium:
+            for key in limits:
+                limits[key] *= 2
+                
+        return limits
 
-        return self.DEFAULT_LIMITS.copy()
-
-    async def get_today_usage(self, user_id: int) -> Dict[str, int]:
-        """Получает использование пользователя за сегодня"""
-        today = datetime.now().date()
-
-        async with self.get_connection() as conn:
-            if self.db_type == "sqlite":
-                cursor = conn.cursor()
-                cursor.execute(
-                    'SELECT limit_type, usage_count FROM daily_usage WHERE user_id = ? AND date = ?',
-                    (user_id, today)
-                )
-                rows = cursor.fetchall()
-            else:
-                rows = await conn.fetch(
-                    'SELECT limit_type, usage_count FROM daily_usage WHERE user_id = $1 AND date = $2',
-                    user_id, today
-                )
-
-        usage = {}
-        for row in rows:
-            usage[row['limit_type']] = row['usage_count']
-
-        # Заполняем недостающие типы нулями
-        for limit_type in self.DEFAULT_LIMITS.keys():
-            if limit_type not in usage:
-                usage[limit_type] = 0
-
-        return usage
+    async def get_usage_for_period(self, user_id: int, limit_type: str, period_type: str = 'daily') -> int:
+        """Получает использование за период"""
+        start_date, end_date = self.get_period_dates(period_type)
+        
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT usage_count FROM usage_limits 
+            WHERE user_id = ? AND limit_type = ? AND period_start = ?
+        ''', (user_id, limit_type, start_date))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        return result['usage_count'] if result else 0
 
     async def check_limit(self, user_id: int, limit_type: str) -> Dict[str, Any]:
         """Проверяет лимит пользователя"""
-        # Убеждаемся, что пользователь существует (без удаления данных)
         if not await self.user_exists(user_id):
-            await self.update_user_info_selective(user_id=user_id)
-
+            await self.create_user(user_id)
+            
         user_limits = await self.get_user_limits(user_id)
-        today_usage = await self.get_today_usage(user_id)
-
-        used = today_usage.get(limit_type, 0)
+        
+        # Определяем тип периода для лимита
+        if limit_type in ['flux_generation', 'midjourney_generation']:
+            # Для некоторых лимитов используется специальная логика
+            if limit_type == 'midjourney_generation':
+                # Для премиум - дневной лимит, для бесплатных - недельный
+                conn = self.get_connection()
+                cursor = conn.cursor()
+                cursor.execute('SELECT subscription_type FROM users WHERE user_id = ?', (user_id,))
+                result = cursor.fetchone()
+                conn.close()
+                
+                is_premium = result and result['subscription_type'] == 'premium'
+                period_type = 'daily' if is_premium else 'weekly'
+            else:
+                period_type = 'weekly'
+        else:
+            period_type = 'daily'
+            
+        used = await self.get_usage_for_period(user_id, limit_type, period_type)
         limit = user_limits.get(limit_type, 0)
         remaining = max(0, limit - used)
         allowed = used < limit
-
-        # Получаем тип подписки
-        async with self.get_connection() as conn:
-            if self.db_type == "sqlite":
-                cursor = conn.cursor()
-                cursor.execute(
-                    'SELECT subscription_type FROM users WHERE user_id = ?',
-                    (user_id,)
-                )
-                row = cursor.fetchone()
-            else:
-                row = await conn.fetchrow(
-                    'SELECT subscription_type FROM users WHERE user_id = $1',
-                    user_id
-                )
-
-        subscription_type = row['subscription_type'] if row else 'free'
-
+        
         return {
             "allowed": allowed,
             "used": used,
             "limit": limit,
             "remaining": remaining,
-            "subscription_type": subscription_type
+            "period_type": period_type
         }
 
     async def use_limit(self, user_id: int, limit_type: str) -> bool:
         """Использует лимит пользователя"""
         check_result = await self.check_limit(user_id, limit_type)
-
+        
         if not check_result["allowed"]:
             return False
-
-        today = datetime.now().date()
-
-        async with self.get_connection() as conn:
-            if self.db_type == "sqlite":
-                cursor = conn.cursor()
-                # Используем INSERT OR REPLACE для SQLite
-                cursor.execute('''
-                    INSERT OR REPLACE INTO daily_usage (user_id, date, limit_type, usage_count, updated_at)
-                    VALUES (?, ?, ?, 
-                        COALESCE((SELECT usage_count FROM daily_usage WHERE user_id = ? AND date = ? AND limit_type = ?), 0) + 1,
-                        CURRENT_TIMESTAMP)
-                ''', (user_id, today, limit_type, user_id, today, limit_type))
-                conn.commit()
-            else:
-                # Используем UPSERT для PostgreSQL
-                await conn.execute('''
-                    INSERT INTO daily_usage (user_id, date, limit_type, usage_count, updated_at)
-                    VALUES ($1, $2, $3, 1, CURRENT_TIMESTAMP)
-                    ON CONFLICT (user_id, date, limit_type)
-                    DO UPDATE SET usage_count = daily_usage.usage_count + 1, updated_at = CURRENT_TIMESTAMP
-                ''', user_id, today, limit_type)
-
-        # Записываем в статистику
-        await self._log_usage_stat(user_id, f"{limit_type}_used")
-
+            
+        # Определяем период
+        period_type = check_result["period_type"]
+        start_date, end_date = self.get_period_dates(period_type)
+        
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO usage_limits 
+            (user_id, limit_type, period_start, period_end, usage_count, period_type, updated_at)
+            VALUES (?, ?, ?, ?, 
+                COALESCE((SELECT usage_count FROM usage_limits 
+                         WHERE user_id = ? AND limit_type = ? AND period_start = ?), 0) + 1,
+                ?, CURRENT_TIMESTAMP)
+        ''', (user_id, limit_type, start_date, end_date, user_id, limit_type, start_date, period_type))
+        
+        conn.commit()
+        conn.close()
+        
         return True
 
     async def get_user_status(self, user_id: int) -> Dict[str, Any]:
-        """Получает полный статус пользователя - ТОЛЬКО SELECT запросы!"""
-        try:
-            logging.debug(f"Получение статуса пользователя {user_id}")
-
-            # Убеждаемся, что пользователь существует
-            if not await self.user_exists(user_id):
-                logging.warning(f"Пользователь {user_id} не найден при получении статуса, создаем...")
-                await self.update_user_info_selective(user_id=user_id)
-
-            user_limits = await self.get_user_limits(user_id)
-            today_usage = await self.get_today_usage(user_id)
-
-            # Получаем информацию о подписке и пользователе - ТОЛЬКО SELECT!
-            async with self.get_connection() as conn:
-                if self.db_type == "sqlite":
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        'SELECT subscription_type, subscription_expires, username, first_name, last_name FROM users WHERE user_id = ?',
-                        (user_id,)
-                    )
-                    row = cursor.fetchone()
+        """Получает полный статус пользователя"""
+        if not await self.user_exists(user_id):
+            await self.create_user(user_id)
+            
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM users WHERE user_id = ?
+        ''', (user_id,))
+        user_data = cursor.fetchone()
+        conn.close()
+        
+        user_limits = await self.get_user_limits(user_id)
+        
+        status = {
+            "user_id": user_id,
+            "username": user_data['username'],
+            "first_name": user_data['first_name'],
+            "last_name": user_data['last_name'],
+            "subscription_type": user_data['subscription_type'],
+            "subscription_expires": user_data['subscription_expires'],
+            "referral_code": user_data['referral_code'],
+            "referral_bonus_expires": user_data['referral_bonus_expires'],
+            "limits": {}
+        }
+        
+        # Получаем использование для каждого лимита
+        for limit_type in user_limits.keys():
+            if limit_type in ['flux_generation', 'midjourney_generation']:
+                if limit_type == 'midjourney_generation':
+                    is_premium = user_data['subscription_type'] == 'premium'
+                    period_type = 'daily' if is_premium else 'weekly'
                 else:
-                    row = await conn.fetchrow(
-                        'SELECT subscription_type, subscription_expires, username, first_name, last_name FROM users WHERE user_id = $1',
-                        user_id
-                    )
-
-            subscription_type = row['subscription_type'] if row else 'free'
-            subscription_expires = row['subscription_expires'] if row else None
-            username = row['username'] if row else None
-            first_name = row['first_name'] if row else None
-            last_name = row['last_name'] if row else None
-
-            status = {
-                "user_id": user_id,
-                "username": username,
-                "first_name": first_name,
-                "last_name": last_name,
-                "subscription_type": subscription_type,
-                "subscription_expires": subscription_expires.isoformat() if subscription_expires else None,
-                "is_vip": user_id in self.VIP_USERS or subscription_type == "vip",
-                "limits": {}
-            }
-
-            for limit_type in self.DEFAULT_LIMITS.keys():
-                used = today_usage.get(limit_type, 0)
-                limit = user_limits.get(limit_type, 0)
-                remaining = max(0, limit - used)
-
-                status["limits"][limit_type] = {
-                    "used": used,
-                    "limit": limit,
-                    "remaining": remaining,
-                    "allowed": used < limit
-                }
-
-            logging.debug(f"Статус пользователя {user_id} успешно получен")
-            return status
-
-        except Exception as e:
-            logging.error(f"Ошибка получения статуса пользователя {user_id}: {e}")
-            raise
-
-    async def _log_usage_stat(self, user_id: int, action_type: str, metadata: dict = None):
-        """Записывает статистику использования"""
-        async with self.get_connection() as conn:
-            if self.db_type == "sqlite":
-                cursor = conn.cursor()
-                metadata_json = json.dumps(metadata) if metadata else None
-                cursor.execute(
-                    'INSERT INTO usage_stats (user_id, action_type, metadata) VALUES (?, ?, ?)',
-                    (user_id, action_type, metadata_json)
-                )
-                conn.commit()
+                    period_type = 'weekly'
             else:
-                await conn.execute(
-                    'INSERT INTO usage_stats (user_id, action_type, metadata) VALUES ($1, $2, $3)',
-                    user_id, action_type, json.dumps(metadata) if metadata else None
-                )
+                period_type = 'daily'
+                
+            used = await self.get_usage_for_period(user_id, limit_type, period_type)
+            limit = user_limits[limit_type]
+            remaining = max(0, limit - used)
+            
+            status["limits"][limit_type] = {
+                "used": used,
+                "limit": limit,
+                "remaining": remaining,
+                "allowed": used < limit,
+                "period_type": period_type
+            }
+            
+        return status
 
     async def set_subscription(self, user_id: int, subscription_type: str, days: int = None):
         """Устанавливает подписку пользователю"""
-        # Убеждаемся, что пользователь существует
         if not await self.user_exists(user_id):
-            await self.update_user_info_selective(user_id=user_id)
-
+            await self.create_user(user_id)
+            
         subscription_expires = None
         if subscription_type == "premium" and days:
             subscription_expires = datetime.now() + timedelta(days=days)
-
-        async with self.get_connection() as conn:
-            if self.db_type == "sqlite":
-                cursor = conn.cursor()
-                cursor.execute(
-                    'UPDATE users SET subscription_type = ?, subscription_expires = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?',
-                    (subscription_type, subscription_expires, user_id)
-                )
-                conn.commit()
-            else:
-                await conn.execute(
-                    'UPDATE users SET subscription_type = $1, subscription_expires = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $3',
-                    subscription_type, subscription_expires, user_id
-                )
-
-        # Логируем изменение подписки
-        await self._log_usage_stat(user_id, f"subscription_changed", {
-            "new_type": subscription_type,
-            "expires": subscription_expires.isoformat() if subscription_expires else None
-        })
-
+            
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE users SET subscription_type = ?, subscription_expires = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE user_id = ?
+        ''', (subscription_type, subscription_expires, user_id))
+        
+        conn.commit()
+        conn.close()
+        
         logging.info(f"Пользователю {user_id} установлена подписка: {subscription_type}")
 
-    async def add_vip_user(self, user_id: int):
-        """Добавляет пользователя в VIP"""
-        self.VIP_USERS.add(user_id)
-        await self.set_subscription(user_id, "vip")
-        logging.info(f"Пользователь {user_id} добавлен в VIP")
-
-    async def remove_vip_user(self, user_id: int):
-        """Удаляет пользователя из VIP"""
-        self.VIP_USERS.discard(user_id)
+    async def reset_subscription(self, user_id: int):
+        """Сбрасывает подписку на бесплатную"""
         await self.set_subscription(user_id, "free")
-        logging.info(f"Пользователь {user_id} удален из VIP")
 
-    async def get_statistics(self, days: int = 7) -> Dict[str, Any]:
-        """Получает статистику за указанное количество дней"""
-        start_date = datetime.now().date() - timedelta(days=days)
+    async def create_payment(self, user_id: int, payment_id: str, amount: int, 
+                           subscription_type: str) -> bool:
+        """Создает запись о платеже"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT INTO payments (user_id, payment_id, amount, subscription_type)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, payment_id, amount, subscription_type))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+        finally:
+            conn.close()
 
-        async with self.get_connection() as conn:
-            if self.db_type == "sqlite":
-                cursor = conn.cursor()
+    async def confirm_payment(self, payment_id: str) -> Optional[Dict]:
+        """Подтверждает платеж и активирует подписку"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM payments WHERE payment_id = ? AND status = 'pending'
+        ''', (payment_id,))
+        payment = cursor.fetchone()
+        
+        if not payment:
+            conn.close()
+            return None
+            
+        # Определяем количество дней подписки
+        days_map = {
+            "week_trial": 7,
+            "month": 30,
+            "3months": 90
+        }
+        
+        days = days_map.get(payment['subscription_type'], 30)
+        
+        # Активируем подписку
+        cursor.execute('''
+            UPDATE payments SET status = 'completed' WHERE payment_id = ?
+        ''', (payment_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        await self.set_subscription(payment['user_id'], "premium", days)
+        
+        return dict(payment)
 
-                # Общая статистика пользователей
-                cursor.execute('SELECT COUNT(*) as total_users FROM users')
-                total_users = cursor.fetchone()['total_users']
-
-                cursor.execute('SELECT subscription_type, COUNT(*) as count FROM users GROUP BY subscription_type')
-                subscription_stats = {row['subscription_type']: row['count'] for row in cursor.fetchall()}
-
-                # Активность за период
-                cursor.execute('''
-                    SELECT date, SUM(usage_count) as total_usage 
-                    FROM daily_usage 
-                    WHERE date >= ? 
-                    GROUP BY date 
-                    ORDER BY date
-                ''', (start_date,))
-                daily_activity = cursor.fetchall()
-
-                # Топ функций
-                cursor.execute('''
-                    SELECT limit_type, SUM(usage_count) as total_usage 
-                    FROM daily_usage 
-                    WHERE date >= ? 
-                    GROUP BY limit_type 
-                    ORDER BY total_usage DESC
-                ''', (start_date,))
-                feature_usage = cursor.fetchall()
-
-            else:
-                # PostgreSQL версия
-                total_users = await conn.fetchval('SELECT COUNT(*) FROM users')
-
-                subscription_rows = await conn.fetch(
-                    'SELECT subscription_type, COUNT(*) as count FROM users GROUP BY subscription_type')
-                subscription_stats = {row['subscription_type']: row['count'] for row in subscription_rows}
-
-                daily_activity = await conn.fetch('''
-                    SELECT date, SUM(usage_count) as total_usage 
-                    FROM daily_usage 
-                    WHERE date >= $1 
-                    GROUP BY date 
-                    ORDER BY date
-                ''', start_date)
-
-                feature_usage = await conn.fetch('''
-                    SELECT limit_type, SUM(usage_count) as total_usage 
-                    FROM daily_usage 
-                    WHERE date >= $1 
-                    GROUP BY limit_type 
-                    ORDER BY total_usage DESC
-                ''', start_date)
-
+    async def get_referral_stats(self, user_id: int) -> Dict[str, Any]:
+        """Получает статистику рефералов"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        # Количество приглашенных
+        cursor.execute('''
+            SELECT COUNT(*) as count FROM referrals WHERE inviter_id = ?
+        ''', (user_id,))
+        invited_count = cursor.fetchone()['count']
+        
+        # Реферальный код
+        cursor.execute('''
+            SELECT referral_code FROM users WHERE user_id = ?
+        ''', (user_id,))
+        result = cursor.fetchone()
+        referral_code = result['referral_code'] if result else None
+        
+        conn.close()
+        
         return {
-            "total_users": total_users,
-            "subscription_stats": subscription_stats,
-            "daily_activity": [dict(row) for row in daily_activity],
-            "feature_usage": [dict(row) for row in feature_usage],
-            "period_days": days
+            "referral_code": referral_code,
+            "invited_count": invited_count
         }
-
-    def get_limit_message(self, user_id: int, limit_type: str, check_result: Dict[str, Any]) -> str:
-        """Возвращает сообщение о превышении лимита"""
-        limit_names = {
-            "photo_analysis": "анализ изображений",
-            "flux_generation": "генерация изображений Flux",
-            "midjourney_generation": "генерация изображений Midjourney",
-            "text_requests": "текстовые запросы"
-        }
-
-        limit_name = limit_names.get(limit_type, limit_type)
-
-        if check_result["allowed"]:
-            return f"✅ {limit_name.title()}: {check_result['used']}/{check_result['limit']} (осталось: {check_result['remaining']})"
-
-        message = f"❌ **Лимит превышен**\n\n"
-        message += f"🚫 {limit_name.title()}: {check_result['used']}/{check_result['limit']}\n"
-        message += f"📊 Ваш тариф: **{check_result['subscription_type'].title()}**\n\n"
-
-        if check_result['subscription_type'] == 'free':
-            message += "💎 **Хотите больше возможностей?**\n"
-            message += "• Premium: увеличенные лимиты\n"
-            message += "• VIP: без ограничений\n\n"
-            message += "📞 Обратитесь к администратору для подключения подписки"
-
-        message += f"\n🔄 Лимиты обновляются каждый день в 00:00"
-
-        return message
-
-
-# Конфигурация для разных сред
-class DatabaseConfig:
-    @staticmethod
-    def get_sqlite_config():
-        """Конфигурация для SQLite (развертывание/тестирование)"""
-        return {
-            "db_type": "sqlite",
-            "database": "bot_limits.db"
-        }
-
-    @staticmethod
-    def get_postgresql_config():
-        """Конфигурация для PostgreSQL (продакшн)"""
-        return {
-            "db_type": "postgresql",
-            "host": os.getenv("DB_HOST", "localhost"),
-            "port": int(os.getenv("DB_PORT", "5432")),
-            "database": os.getenv("DB_NAME", "bot_limits"),
-            "user": os.getenv("DB_USER", "bot_user"),
-            "password": os.getenv("DB_PASSWORD", "your_password"),
-            "min_size": 5,  # Минимальный размер пула соединений
-            "max_size": 20,  # Максимальный размер пула соединений
-        }
-
-    @staticmethod
-    def get_config_for_environment():
-        """Автоматически выбирает конфигурацию в зависимости от окружения"""
-        if os.getenv("ENVIRONMENT") == "production":
-            return DatabaseConfig.get_postgresql_config()
-        else:
-            return DatabaseConfig.get_sqlite_config()
