@@ -189,7 +189,7 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
 
     # Добавляем бесплатные текстовые модели
     if text_free_models:
-        keyboard.append([InlineKeyboardButton(text="🆓 Бесплатные текстовые модели", callback_data="info_free_text")])
+        #keyboard.append([InlineKeyboardButton(text="🆓 Бесплатные текстовые модели", callback_data="info_free_text")])
         for model_key, model_info in text_free_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if model_key == current_model:
@@ -198,7 +198,7 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
 
     # Добавляем премиум текстовые модели
     if text_premium_models:
-        keyboard.append([InlineKeyboardButton(text="💎 Премиум текстовые модели", callback_data="info_premium_text")])
+        #keyboard.append([InlineKeyboardButton(text="💎 Премиум текстовые модели", callback_data="info_premium_text")])
         for model_key, model_info in text_premium_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if not is_premium:
@@ -209,8 +209,8 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
 
     # Добавляем бесплатные модели генерации
     if image_free_models:
-        keyboard.append(
-            [InlineKeyboardButton(text="🎨 Бесплатная генерация изображений", callback_data="info_free_image")])
+        #keyboard.append(
+        #    [InlineKeyboardButton(text="🎨 Бесплатная генерация изображений", callback_data="info_free_image")])
         for model_key, model_info in image_free_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if model_key == current_model:
@@ -219,8 +219,8 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
 
     # Добавляем премиум модели генерации
     if image_premium_models:
-        keyboard.append(
-            [InlineKeyboardButton(text="🎭 Премиум генерация изображений", callback_data="info_premium_image")])
+        #keyboard.append(
+        #    [InlineKeyboardButton(text="🎭 Премиум генерация изображений", callback_data="info_premium_image")])
         for model_key, model_info in image_premium_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if not is_premium:
@@ -246,8 +246,8 @@ def create_subscription_plans_keyboard():
     """Создает клавиатуру с планами подписки"""
     keyboard = [
         [InlineKeyboardButton(text="🔥 Пробная неделя - 1₽", callback_data="buy_week_trial")],
-        [InlineKeyboardButton(text="📅 Месяц - 299₽", callback_data="buy_month")],
-        [InlineKeyboardButton(text="💰 3 месяца - 799₽", callback_data="buy_3months")],
+        [InlineKeyboardButton(text="📅 Месяц - 555₽", callback_data="buy_month")],
+        [InlineKeyboardButton(text="💰 3 месяца - 1111₽", callback_data="buy_3months")],
         [InlineKeyboardButton(text="↩️ Назад", callback_data="back_main")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -370,7 +370,7 @@ async def translate_with_ai(text: str) -> tuple[str, bool]:
         history = [
             {
                 "role": "system",
-                "content": "Ты профессиональный переводчик. Переводи точно и кратко."
+                "content": "Ты профессиональный переводчик. Переводи точно."
             },
             {
                 "role": "user",
@@ -378,14 +378,14 @@ async def translate_with_ai(text: str) -> tuple[str, bool]:
             }
         ]
 
-        # Используем бесплатную модель для перевода
+        # Используем модель для перевода
         completion = await asyncio.wait_for(
             text_client.chat.completions.create(
                 extra_headers={
                     "HTTP-Referer": "https://kuzotgpro.com",
                     "X-Title": "Kuzo telegram gpt",
                 },
-                model=BotConfig.MODELS["gpt-4o-mini"]["api_name"],
+                model=BotConfig.MODELS["gemma3"]["api_name"],
                 messages=history,
                 max_tokens=200,
                 temperature=0.3
@@ -489,8 +489,8 @@ async def process_message_with_ai(history: list, processing_msg: types.Message, 
         raise e
 
 
-async def generate_image(prompt: str, model: str = "flux") -> str:
-    """Генерирует изображение и возвращает URL"""
+async def generate_image(prompt: str, model: str = "flux") -> tuple[str, str, bool]:
+    """Генерирует изображение и возвращает URL, финальный промпт и флаг перевода"""
     english_prompt, was_translated = await translate_with_ai(prompt)
 
     response = await img_client.images.async_generate(
@@ -981,8 +981,8 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
 
     prices = {
         "week_trial": "1₽ (пробная неделя)",
-        "month": "299₽ (месяц)",
-        "3months": "799₽ (3 месяца)"
+        "month": "555₽ (месяц)",
+        "3months": "1111₽ (3 месяца)"
     }
 
     await callback_query.message.edit_text(
@@ -1020,51 +1020,6 @@ async def handle_payment_creation(callback_query: types.CallbackQuery):
 
     await callback_query.answer("Функция оплаты в разработке")
 
-    # Код для интеграции с ЮKassa (раскомментировать после настройки):
-    """
-    try:
-        # Создаем платеж
-        payment_info = await payment_manager.create_payment(
-            user_id=user_id,
-            subscription_type=subscription_type,
-            return_url=f"https://t.me/{(await bot.get_me()).username}"
-        )
-
-        if payment_info:
-            keyboard = [
-                [InlineKeyboardButton(
-                    text="💳 Перейти к оплате",
-                    url=payment_info["confirmation_url"]
-                )],
-                [InlineKeyboardButton(
-                    text="🔄 Проверить оплату",
-                    callback_data=f"check_payment_{payment_info['payment_id']}"
-                )],
-                [InlineKeyboardButton(text="↩️ Назад", callback_data="back_subscription")]
-            ]
-
-            await callback_query.message.edit_text(
-                f"💳 **Ссылка для оплаты создана**\n\n"
-                f"💰 Сумма: {payment_info['amount']} ₽\n"
-                f"📄 Описание: {payment_info['description']}\n\n"
-                f"1️⃣ Нажмите кнопку 'Перейти к оплате'\n"
-                f"2️⃣ Оплатите удобным способом\n"
-                f"3️⃣ Вернитесь и нажмите 'Проверить оплату'\n\n"
-                f"⏰ Ссылка действительна 24 часа",
-                reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-                parse_mode="Markdown"
-            )
-        else:
-            await callback_query.message.edit_text(
-                "❌ Не удалось создать платеж. Попробуйте позже.",
-                parse_mode="Markdown"
-            )
-
-    except Exception as e:
-        logging.error(f"Ошибка создания платежа: {e}")
-        await callback_query.answer("❌ Ошибка создания платежа", show_alert=True)
-    """
-
 
 @dp.callback_query(F.data.startswith("check_payment_"))
 async def handle_payment_check(callback_query: types.CallbackQuery):
@@ -1073,32 +1028,6 @@ async def handle_payment_check(callback_query: types.CallbackQuery):
 
     # Заглушка для проверки платежа
     await callback_query.answer("Функция проверки платежа в разработке")
-
-    # Код для проверки статуса платежа (раскомментировать после настройки):
-    """
-    try:
-        payment_status = await payment_manager.check_payment_status(payment_id)
-
-        if payment_status and payment_status["paid"]:
-            # Платеж успешен, активируем подписку
-            await callback_query.message.edit_text(
-                "✅ **Платеж успешно завершен!**\n\n"
-                "🎉 Premium подписка активирована!\n"
-                "💎 Теперь вам доступны все премиум функции.\n\n"
-                "Используйте меню бота для доступа к новым возможностям.",
-                parse_mode="Markdown"
-            )
-            await callback_query.answer("✅ Подписка активирована!")
-        else:
-            await callback_query.answer(
-                "⏳ Платеж еще не завершен. Попробуйте через несколько минут.",
-                show_alert=True
-            )
-
-    except Exception as e:
-        logging.error(f"Ошибка проверки платежа: {e}")
-        await callback_query.answer("❌ Ошибка проверки платежа", show_alert=True)
-    """
 
 
 @dp.callback_query(F.data == "back_subscription")
@@ -1159,19 +1088,53 @@ async def handle_photo(message: types.Message, state: FSMContext):
         await message.answer(
             f"❌ **Лимит превышен**\n\n"
             f"🖼 Анализ изображений: {limit_check['used']}/{limit_check['limit']}\n"
-        parse_mode = "Markdown"
+            f"💎 Для увеличения лимитов используйте меню 'Подписка'",
+            parse_mode="Markdown"
         )
         return
 
-    processing_msg = await message.answer("🧠 Помощник обрабатывает сообщение...")
+    # Используем лимит
+    if not await db_manager.use_limit(user_id, "photo_analysis"):
+        await message.answer("❌ Не удалось использовать лимит. Попробуйте позже.")
+        return
+
+    remaining = limit_check["remaining"] - 1
+    processing_text = f"🖼 Анализирую изображение... (осталось: {remaining}/{limit_check['limit']})"
+    processing_msg = await message.answer(processing_text)
 
     try:
+        photo = message.photo[-1]
+        base64_image, mime_type = await download_image_as_base64(photo.file_id)
+
+        data = await state.get_data()
         history = data.get("history", [])
+        current_model = data.get("current_model", BotConfig.DEFAULT_MODEL)
 
         if not history:
             history.append(get_system_message())
 
-        history.append({"role": "user", "content": user_text})
+        user_message = {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{base64_image}",
+                        "detail": "high"
+                    }
+                }
+            ]
+        }
+
+        if message.caption:
+            user_message["content"].append({"type": "text", "text": message.caption})
+        else:
+            user_message["content"].append({
+                "type": "text",
+                "text": "Проанализируй это изображение подробно. Если это задача или содержит текст - прочитай и реши."
+            })
+
+        history.append(user_message)
 
         if len(history) > MAX_HISTORY * 2 + 1:
             system_msg = history[0] if history[0]["role"] == "system" else None
@@ -1186,16 +1149,16 @@ async def handle_photo(message: types.Message, state: FSMContext):
         history.append({"role": "assistant", "content": response_text})
         await state.update_data(history=history)
 
-        # Используем лимит
-        await db_manager.use_limit(user_id, limit_type)
-
         try:
             await bot.delete_message(message.chat.id, processing_msg.message_id)
         except Exception:
             pass
 
         model_name = BotConfig.MODEL_NAMES[current_model]
-        full_response = f"🤖 {model_name}\n\n" + clean_markdown_for_telegram(response_text)
+        status = await db_manager.get_user_status(user_id)
+        remaining_now = status["limits"]["photo_analysis"]["remaining"]
+
+        full_response = f"🤖 {model_name}\n📊 Анализ изображений: {remaining_now}/{limit_check['limit']}\n\n" + clean_markdown_for_telegram(response_text)
         await send_long_message(message, full_response)
 
     except Exception as e:
@@ -1204,102 +1167,14 @@ async def handle_photo(message: types.Message, state: FSMContext):
         except Exception:
             pass
 
-        logging.error(f"Ошибка при запросе к AI: {e}")
+        logging.error(f"Ошибка при обработке изображения: {e}")
         await message.answer(
-            f"❌ Не удалось получить ответ от AI\n"
+            f"❌ Не удалось проанализировать изображение\n"
             f"💡 Возможные решения:\n"
-            f"• Подождите немного и повторите\n"
-            f"• Сократите длину сообщения\n"
+            f"• Попробуйте отправить изображение в лучшем качестве\n"
+            f"• Убедитесь, что изображение не слишком большое\n"
             f"• Используйте /new для очистки контекста"
         )
-        parse_mode = "Markdown"
-    )
-    return
-
-
-# Используем лимит
-if not await db_manager.use_limit(user_id, "photo_analysis"):
-    await message.answer("❌ Не удалось использовать лимит. Попробуйте позже.")
-    return
-
-remaining = limit_check["remaining"] - 1
-processing_text = f"🖼 Анализирую изображение... (осталось: {remaining}/{limit_check['limit']})"
-processing_msg = await message.answer(processing_text)
-
-try:
-    photo = message.photo[-1]
-    base64_image, mime_type = await download_image_as_base64(photo.file_id)
-
-    data = await state.get_data()
-    history = data.get("history", [])
-    current_model = data.get("current_model", BotConfig.DEFAULT_MODEL)
-
-    if not history:
-        history.append(get_system_message())
-
-    user_message = {
-        "role": "user",
-        "content": [
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:{mime_type};base64,{base64_image}",
-                    "detail": "high"
-                }
-            }
-        ]
-    }
-
-    if message.caption:
-        user_message["content"].append({"type": "text", "text": message.caption})
-    else:
-        user_message["content"].append({
-            "type": "text",
-            "text": "Проанализируй это изображение подробно. Если это задача или содержит текст - прочитай и реши."
-        })
-
-    history.append(user_message)
-
-    if len(history) > MAX_HISTORY * 2 + 1:
-        system_msg = history[0] if history[0]["role"] == "system" else None
-        recent_history = history[-(MAX_HISTORY * 2):]
-        if system_msg:
-            history = [system_msg] + recent_history
-        else:
-            history = recent_history
-
-    response_text = await process_message_with_ai(history, processing_msg, current_model)
-
-    history.append({"role": "assistant", "content": response_text})
-    await state.update_data(history=history)
-
-    try:
-        await bot.delete_message(message.chat.id, processing_msg.message_id)
-    except Exception:
-        pass
-
-    model_name = BotConfig.MODEL_NAMES[current_model]
-    status = await db_manager.get_user_status(user_id)
-    remaining_now = status["limits"]["photo_analysis"]["remaining"]
-
-    full_response = f"🤖 {model_name}\n📊 Анализ изображений: {remaining_now}/{limit_check['limit']}\n\n" + clean_markdown_for_telegram(
-        response_text)
-    await send_long_message(message, full_response)
-
-except Exception as e:
-    try:
-        await bot.delete_message(message.chat.id, processing_msg.message_id)
-    except Exception:
-        pass
-
-    logging.error(f"Ошибка при обработке изображения: {e}")
-    await message.answer(
-        f"❌ Не удалось проанализировать изображение\n"
-        f"💡 Возможные решения:\n"
-        f"• Попробуйте отправить изображение в лучшем качестве\n"
-        f"• Убедитесь, что изображение не слишком большое\n"
-        f"• Используйте /new для очистки контекста"
-    )
 
 
 @dp.message(F.document)
@@ -1601,15 +1476,14 @@ async def admin_cmd(message: types.Message):
     if message.from_user.id not in BotConfig.ADMIN_IDS:
         await message.answer("❌ У вас нет прав для выполнения этой команды")
         return
-
     await message.answer(
-        "🔧 **Админская панель**\n\n"
+        "🔧 *Админская панель*\n\n"
         "Доступные команды:\n"
         "• /admin_stats - Статистика\n"
-        "• /admin_user <user_id> - Информация о пользователе\n"
-        "• /admin_premium <user_id> <days> - Выдать премиум\n"
-        "• /admin_reset <user_id> - Сбросить подписку",
-        parse_mode="Markdown"
+        "• /admin_user [user_id] - Информация о пользователе\n"
+        "• /admin_premium [user_id] [days] - Выдать премиум\n"
+        "• /admin_reset [user_id] - Сбросить подписку",
+        parse_mode="HTML"
     )
 
 

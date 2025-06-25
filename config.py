@@ -2,7 +2,7 @@ import os
 
 class BotConfig:
     BOT_TOKEN = "mytoken"
-    OPENAPI = "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"
+    OPENAPI = "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"
     YOOKASSA_TOKEN = "your_yookassa_token"  # Токен ЮKassa
     
     # Базовая цена подписки (в рублях)
@@ -112,6 +112,6 @@ class BotConfig:
     ADMIN_IDS = {768902323, 1374423290}
     
     # Канал для подписки
-    REQUIRED_CHANNEL_ID = "@technoloka"
-    CHANNEL_URL = "https://t.me/technoloka"
-    CHANNEL_NAME = "Техноложка"
+    REQUIRED_CHANNEL_ID = "@cyperpyl"
+    CHANNEL_URL = "https://t.me/cyperpyl"
+    CHANNEL_NAME = "Цифровая пыль"

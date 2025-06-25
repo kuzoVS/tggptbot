@@ -1,0 +1,497 @@
+2025-06-24 00:35:05,541 - root - INFO - Запуск бота...
+2025-06-24 00:35:05,541 - root - INFO - Инициализация базы данных...
+2025-06-24 00:35:05,600 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:35:05,600 - root - INFO - База данных инициализирована
+2025-06-24 00:35:05,600 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:35:05,802 - root - INFO - Начинаем polling...
+2025-06-24 00:35:05,803 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:35:05,849 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:35:26,726 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 00:35:26,980 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:35:30,719 - root - INFO - Запуск бота...
+2025-06-24 00:35:30,719 - root - INFO - Инициализация базы данных...
+2025-06-24 00:35:30,720 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:35:30,720 - root - INFO - База данных инициализирована
+2025-06-24 00:35:30,720 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:35:30,873 - root - INFO - Начинаем polling...
+2025-06-24 00:35:30,873 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:35:30,923 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:36:03,631 - root - INFO - Создан новый пользователь 768902323
+2025-06-24 00:36:03,820 - root - ERROR - Ошибка проверки подписки для пользователя 768902323: Telegram server says - Bad Request: chat not found
+2025-06-24 00:36:03,910 - aiogram.event - INFO - Update id=524920807 is handled. Duration 281 ms by bot id=1567112575
+2025-06-24 00:37:26,170 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 00:37:26,421 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:37:29,416 - root - INFO - Запуск бота...
+2025-06-24 00:37:29,416 - root - INFO - Инициализация базы данных...
+2025-06-24 00:37:29,417 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:37:29,417 - root - INFO - База данных инициализирована
+2025-06-24 00:37:29,417 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:37:29,613 - root - INFO - Начинаем polling...
+2025-06-24 00:37:29,613 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:37:29,667 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:37:31,982 - aiogram.event - INFO - Update id=524920808 is handled. Duration 279 ms by bot id=1567112575
+2025-06-24 00:37:47,952 - aiogram.event - INFO - Update id=524920809 is handled. Duration 125 ms by bot id=1567112575
+2025-06-24 00:37:52,683 - aiogram.event - INFO - Update id=524920810 is not handled. Duration 89 ms by bot id=1567112575
+2025-06-24 00:39:05,315 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 00:39:05,567 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:39:08,503 - root - INFO - Запуск бота...
+2025-06-24 00:39:08,503 - root - INFO - Инициализация базы данных...
+2025-06-24 00:39:08,504 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:39:08,504 - root - INFO - База данных инициализирована
+2025-06-24 00:39:08,504 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:39:08,666 - root - INFO - Начинаем polling...
+2025-06-24 00:39:08,666 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:39:08,717 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:39:10,630 - aiogram.event - INFO - Update id=524920811 is handled. Duration 285 ms by bot id=1567112575
+2025-06-24 00:39:13,828 - aiogram.event - INFO - Update id=524920812 is handled. Duration 123 ms by bot id=1567112575
+2025-06-24 00:39:15,980 - aiogram.event - INFO - Update id=524920813 is handled. Duration 229 ms by bot id=1567112575
+2025-06-24 00:39:18,561 - aiogram.event - INFO - Update id=524920814 is handled. Duration 187 ms by bot id=1567112575
+2025-06-24 00:39:23,298 - aiogram.event - INFO - Update id=524920815 is handled. Duration 151 ms by bot id=1567112575
+2025-06-24 00:39:36,888 - aiogram.event - INFO - Update id=524920816 is handled. Duration 124 ms by bot id=1567112575
+2025-06-24 00:39:50,688 - aiogram.event - INFO - Update id=524920817 is handled. Duration 128 ms by bot id=1567112575
+2025-06-24 00:39:52,948 - aiogram.event - INFO - Update id=524920818 is handled. Duration 207 ms by bot id=1567112575
+2025-06-24 00:40:01,065 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-06-24 00:40:01,066 - root - ERROR - Ошибка AI перевода: Error code: 401 - {'error': {'message': 'No auth credentials found', 'code': 401}}
+2025-06-24 00:40:01,873 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-06-24 00:40:01,874 - root - ERROR - Ошибка AI перевода: Error code: 401 - {'error': {'message': 'No auth credentials found', 'code': 401}}
+2025-06-24 00:40:08,325 - aiogram.event - INFO - Update id=524920819 is handled. Duration 8110 ms by bot id=1567112575
+2025-06-24 00:40:21,630 - aiogram.event - INFO - Update id=524920820 is handled. Duration 310 ms by bot id=1567112575
+2025-06-24 00:40:30,643 - aiogram.event - INFO - Update id=524920821 is handled. Duration 149 ms by bot id=1567112575
+2025-06-24 00:40:35,966 - aiogram.event - INFO - Update id=524920822 is handled. Duration 127 ms by bot id=1567112575
+2025-06-24 00:40:37,397 - aiogram.event - INFO - Update id=524920823 is handled. Duration 222 ms by bot id=1567112575
+2025-06-24 00:40:38,766 - aiogram.event - INFO - Update id=524920824 is handled. Duration 160 ms by bot id=1567112575
+2025-06-24 00:41:07,092 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 00:41:07,343 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:41:10,303 - root - INFO - Запуск бота...
+2025-06-24 00:41:10,303 - root - INFO - Инициализация базы данных...
+2025-06-24 00:41:10,304 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:41:10,304 - root - INFO - База данных инициализирована
+2025-06-24 00:41:10,304 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:41:10,460 - root - INFO - Начинаем polling...
+2025-06-24 00:41:10,460 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:41:10,510 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:41:12,411 - aiogram.event - INFO - Update id=524920825 is handled. Duration 260 ms by bot id=1567112575
+2025-06-24 00:41:16,936 - aiogram.event - INFO - Update id=524920826 is handled. Duration 158 ms by bot id=1567112575
+2025-06-24 00:41:17,770 - aiogram.event - INFO - Update id=524920827 is handled. Duration 204 ms by bot id=1567112575
+2025-06-24 00:42:11,430 - aiogram.event - INFO - Update id=524920828 is handled. Duration 201 ms by bot id=1567112575
+2025-06-24 00:43:29,749 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 00:43:30,000 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:43:32,933 - root - INFO - Запуск бота...
+2025-06-24 00:43:32,933 - root - INFO - Инициализация базы данных...
+2025-06-24 00:43:32,934 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:43:32,934 - root - INFO - База данных инициализирована
+2025-06-24 00:43:32,934 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:43:33,122 - root - INFO - Начинаем polling...
+2025-06-24 00:43:33,122 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:43:33,180 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:43:36,743 - aiogram.event - INFO - Update id=524920829 is handled. Duration 255 ms by bot id=1567112575
+2025-06-24 00:43:37,780 - aiogram.event - INFO - Update id=524920830 is handled. Duration 222 ms by bot id=1567112575
+2025-06-24 00:43:40,120 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-06-24 00:43:40,121 - root - ERROR - Ошибка AI перевода: Error code: 401 - {'error': {'message': 'No auth credentials found', 'code': 401}}
+2025-06-24 00:43:40,511 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-06-24 00:43:40,511 - root - ERROR - Ошибка AI перевода: Error code: 401 - {'error': {'message': 'No auth credentials found', 'code': 401}}
+2025-06-24 00:43:46,656 - aiogram.event - INFO - Update id=524920831 is handled. Duration 7218 ms by bot id=1567112575
+2025-06-24 00:44:36,231 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 00:44:36,482 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:44:40,329 - root - INFO - Запуск бота...
+2025-06-24 00:44:40,330 - root - INFO - Инициализация базы данных...
+2025-06-24 00:44:40,330 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:44:40,330 - root - INFO - База данных инициализирована
+2025-06-24 00:44:40,330 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:44:40,485 - root - INFO - Начинаем polling...
+2025-06-24 00:44:40,485 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:44:40,535 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:44:47,557 - aiogram.event - INFO - Update id=524920832 is handled. Duration 281 ms by bot id=1567112575
+2025-06-24 00:44:49,172 - aiogram.event - INFO - Update id=524920833 is handled. Duration 742 ms by bot id=1567112575
+2025-06-24 00:44:54,731 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-24 00:44:57,259 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-24 00:45:03,867 - aiogram.event - INFO - Update id=524920834 is handled. Duration 11489 ms by bot id=1567112575
+2025-06-24 00:45:13,719 - aiogram.event - INFO - Update id=524920835 is handled. Duration 123 ms by bot id=1567112575
+2025-06-24 00:45:14,741 - aiogram.event - INFO - Update id=524920836 is handled. Duration 225 ms by bot id=1567112575
+2025-06-24 00:45:17,155 - aiogram.event - INFO - Update id=524920837 is handled. Duration 155 ms by bot id=1567112575
+2025-06-24 00:45:21,798 - aiogram.event - INFO - Update id=524920838 is handled. Duration 177 ms by bot id=1567112575
+2025-06-24 00:45:27,127 - aiogram.event - INFO - Update id=524920839 is handled. Duration 218 ms by bot id=1567112575
+2025-06-24 00:46:03,768 - aiogram.event - INFO - Update id=524920840 is handled. Duration 208 ms by bot id=1567112575
+2025-06-24 00:46:19,833 - root - INFO - Создан новый пользователь 1374423290
+2025-06-24 00:46:19,965 - aiogram.event - INFO - Update id=524920841 is handled. Duration 170 ms by bot id=1567112575
+2025-06-24 00:46:23,034 - aiogram.event - INFO - Update id=524920842 is handled. Duration 186 ms by bot id=1567112575
+2025-06-24 00:48:24,030 - aiogram.event - INFO - Update id=524920843 is handled. Duration 205 ms by bot id=1567112575
+2025-06-24 00:48:24,601 - aiogram.event - INFO - Update id=524920844 is handled. Duration 185 ms by bot id=1567112575
+2025-06-24 00:49:09,231 - root - INFO - Создан новый пользователь 7532200378
+2025-06-24 00:49:09,365 - aiogram.event - INFO - Update id=524920845 is handled. Duration 144 ms by bot id=1567112575
+2025-06-24 00:49:14,497 - aiogram.event - INFO - Update id=524920846 is handled. Duration 623 ms by bot id=1567112575
+2025-06-24 00:49:17,777 - aiogram.event - INFO - Update id=524920847 is handled. Duration 126 ms by bot id=1567112575
+2025-06-24 00:49:20,839 - aiogram.event - INFO - Update id=524920848 is handled. Duration 226 ms by bot id=1567112575
+2025-06-24 00:50:05,106 - aiogram.event - INFO - Update id=524920849 is handled. Duration 128 ms by bot id=1567112575
+2025-06-24 00:50:08,533 - aiogram.event - INFO - Update id=524920850 is handled. Duration 168 ms by bot id=1567112575
+2025-06-24 00:50:13,140 - aiogram.event - INFO - Update id=524920851 is handled. Duration 119 ms by bot id=1567112575
+2025-06-24 00:50:16,368 - aiogram.event - INFO - Update id=524920852 is handled. Duration 196 ms by bot id=1567112575
+2025-06-24 00:50:22,215 - root - INFO - Пользователь 768902323: Привет...
+2025-06-24 00:50:22,283 - aiogram.event - INFO - Update id=524920853 is handled. Duration 154 ms by bot id=1567112575
+2025-06-24 00:50:29,574 - aiogram.event - INFO - Update id=524920854 is handled. Duration 195 ms by bot id=1567112575
+2025-06-24 00:50:33,462 - aiogram.event - INFO - Update id=524920855 is handled. Duration 131 ms by bot id=1567112575
+2025-06-24 00:50:55,113 - aiogram.event - INFO - Update id=524920856 is handled. Duration 236 ms by bot id=1567112575
+2025-06-24 00:50:58,336 - aiogram.event - INFO - Update id=524920857 is handled. Duration 160 ms by bot id=1567112575
+2025-06-24 00:51:06,714 - aiogram.event - INFO - Update id=524920858 is handled. Duration 166 ms by bot id=1567112575
+2025-06-24 00:51:19,460 - aiogram.event - INFO - Update id=524920859 is handled. Duration 127 ms by bot id=1567112575
+2025-06-24 00:51:21,188 - aiogram.event - INFO - Update id=524920860 is handled. Duration 207 ms by bot id=1567112575
+2025-06-24 00:51:25,001 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 00:51:25,252 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:51:28,856 - root - INFO - Запуск бота...
+2025-06-24 00:51:28,856 - root - INFO - Инициализация базы данных...
+2025-06-24 00:51:28,857 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:51:28,857 - root - INFO - База данных инициализирована
+2025-06-24 00:51:28,857 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:51:29,044 - root - INFO - Начинаем polling...
+2025-06-24 00:51:29,044 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:51:29,099 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:51:30,725 - aiogram.event - INFO - Update id=524920861 is handled. Duration 247 ms by bot id=1567112575
+2025-06-24 00:51:32,399 - aiogram.event - INFO - Update id=524920862 is handled. Duration 168 ms by bot id=1567112575
+2025-06-24 00:56:36,281 - aiogram.event - INFO - Update id=524920863 is handled. Duration 196 ms by bot id=1567112575
+2025-06-24 00:56:37,006 - aiogram.event - INFO - Update id=524920864 is handled. Duration 128 ms by bot id=1567112575
+2025-06-24 00:56:38,429 - aiogram.event - INFO - Update id=524920865 is handled. Duration 144 ms by bot id=1567112575
+2025-06-24 00:56:44,217 - aiogram.event - INFO - Update id=524920866 is handled. Duration 135 ms by bot id=1567112575
+2025-06-24 00:56:45,373 - aiogram.event - INFO - Update id=524920867 is handled. Duration 133 ms by bot id=1567112575
+2025-06-24 00:56:47,634 - aiogram.event - INFO - Update id=524920868 is handled. Duration 129 ms by bot id=1567112575
+2025-06-24 00:56:50,398 - aiogram.event - INFO - Update id=524920869 is handled. Duration 117 ms by bot id=1567112575
+2025-06-24 00:58:00,990 - aiogram.event - INFO - Update id=524920870 is handled. Duration 159 ms by bot id=1567112575
+2025-06-24 00:58:05,704 - aiogram.event - INFO - Update id=524920871 is not handled. Duration 145 ms by bot id=1567112575
+2025-06-24 00:58:05,704 - aiogram.event - ERROR - Cause exception while process update id=524920871 by bot id=1567112575
+TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 282
+Traceback (most recent call last):
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 136, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 82, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        observer=observer, update_type=update_type, event=telegram_event, **data
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 1480, in admin_cmd
+    await message.answer(
+    ...<7 lines>...
+    )
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\methods\base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\bot.py", line 478, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\aiohttp.py", line 185, in make_request
+    response = self.check_response(
+        bot=bot, method=method, status_code=resp.status, content=raw_result
+    )
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 282
+2025-06-24 00:58:18,119 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 00:58:18,370 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:58:22,273 - root - INFO - Запуск бота...
+2025-06-24 00:58:22,273 - root - INFO - Инициализация базы данных...
+2025-06-24 00:58:22,274 - root - INFO - SQLite база данных инициализирована
+2025-06-24 00:58:22,274 - root - INFO - База данных инициализирована
+2025-06-24 00:58:22,274 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 00:58:22,449 - root - INFO - Начинаем polling...
+2025-06-24 00:58:22,449 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 00:58:22,499 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 00:58:38,296 - aiogram.event - INFO - Update id=524920872 is not handled. Duration 211 ms by bot id=1567112575
+2025-06-24 00:58:38,296 - aiogram.event - ERROR - Cause exception while process update id=524920872 by bot id=1567112575
+TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 282
+Traceback (most recent call last):
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 136, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 82, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        observer=observer, update_type=update_type, event=telegram_event, **data
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 1480, in admin_cmd
+    await message.answer(
+    ...<7 lines>...
+    )
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\methods\base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\bot.py", line 478, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\aiohttp.py", line 185, in make_request
+    response = self.check_response(
+        bot=bot, method=method, status_code=resp.status, content=raw_result
+    )
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 282
+2025-06-24 01:00:10,776 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 01:00:11,027 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 01:00:14,795 - root - INFO - Запуск бота...
+2025-06-24 01:00:14,795 - root - INFO - Инициализация базы данных...
+2025-06-24 01:00:14,796 - root - INFO - SQLite база данных инициализирована
+2025-06-24 01:00:14,796 - root - INFO - База данных инициализирована
+2025-06-24 01:00:14,796 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 01:00:14,969 - root - INFO - Начинаем polling...
+2025-06-24 01:00:14,969 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 01:00:15,018 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 01:00:17,516 - aiogram.event - INFO - Update id=524920873 is not handled. Duration 193 ms by bot id=1567112575
+2025-06-24 01:00:17,516 - aiogram.event - ERROR - Cause exception while process update id=524920873 by bot id=1567112575
+TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 280
+Traceback (most recent call last):
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 309, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 158, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\middlewares\error.py", line 25, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\middlewares\user_context.py", line 56, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\fsm\middleware.py", line 42, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 136, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 82, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\dispatcher.py", line 276, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 146, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 141, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        observer=observer, update_type=update_type, event=telegram_event, **data
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\router.py", line 166, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\telegram.py", line 121, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\dispatcher\event\handler.py", line 43, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\main.py", line 1480, in admin_cmd
+    await message.answer(
+    ...<7 lines>...
+    )
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\methods\base.py", line 84, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\bot.py", line 478, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\base.py", line 254, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\aiohttp.py", line 185, in make_request
+    response = self.check_response(
+        bot=bot, method=method, status_code=resp.status, content=raw_result
+    )
+  File "C:\Users\godof\PycharmProjects\tggptbot\.venv\Lib\site-packages\aiogram\client\session\base.py", line 120, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 280
+2025-06-24 01:01:21,046 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 01:01:21,298 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 01:01:24,224 - root - INFO - Запуск бота...
+2025-06-24 01:01:24,224 - root - INFO - Инициализация базы данных...
+2025-06-24 01:01:24,224 - root - INFO - SQLite база данных инициализирована
+2025-06-24 01:01:24,224 - root - INFO - База данных инициализирована
+2025-06-24 01:01:24,225 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 01:01:24,393 - root - INFO - Начинаем polling...
+2025-06-24 01:01:24,393 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 01:01:24,447 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 01:01:26,680 - aiogram.event - INFO - Update id=524920874 is handled. Duration 272 ms by bot id=1567112575
+2025-06-24 01:01:30,499 - aiogram.event - INFO - Update id=524920875 is handled. Duration 170 ms by bot id=1567112575
+2025-06-24 01:02:28,921 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 01:02:29,172 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 01:02:32,095 - root - INFO - Запуск бота...
+2025-06-24 01:02:32,095 - root - INFO - Инициализация базы данных...
+2025-06-24 01:02:32,096 - root - INFO - SQLite база данных инициализирована
+2025-06-24 01:02:32,096 - root - INFO - База данных инициализирована
+2025-06-24 01:02:32,096 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 01:02:32,263 - root - INFO - Начинаем polling...
+2025-06-24 01:02:32,263 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 01:02:32,316 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 01:02:33,962 - aiogram.event - INFO - Update id=524920876 is handled. Duration 223 ms by bot id=1567112575
+2025-06-24 01:02:37,170 - aiogram.event - INFO - Update id=524920877 is handled. Duration 168 ms by bot id=1567112575
+2025-06-24 01:02:43,948 - aiogram.event - INFO - Update id=524920878 is handled. Duration 179 ms by bot id=1567112575
+2025-06-24 01:02:46,436 - aiogram.event - INFO - Update id=524920879 is handled. Duration 139 ms by bot id=1567112575
+2025-06-24 01:02:59,425 - aiogram.event - INFO - Update id=524920880 is handled. Duration 136 ms by bot id=1567112575
+2025-06-24 01:03:32,044 - aiogram.event - INFO - Update id=524920881 is handled. Duration 174 ms by bot id=1567112575
+2025-06-24 01:03:39,378 - aiogram.event - INFO - Update id=524920882 is handled. Duration 222 ms by bot id=1567112575
+2025-06-24 01:04:01,080 - root - INFO - Пользователю 768902323 установлена подписка: premium
+2025-06-24 01:04:01,151 - aiogram.event - INFO - Update id=524920883 is handled. Duration 145 ms by bot id=1567112575
+2025-06-24 01:04:16,073 - aiogram.event - INFO - Update id=524920884 is handled. Duration 169 ms by bot id=1567112575
+2025-06-24 01:05:09,343 - root - INFO - Создан новый пользователь 8049715531
+2025-06-24 01:05:09,742 - aiogram.event - INFO - Update id=524920885 is handled. Duration 405 ms by bot id=1567112575
+2025-06-24 01:05:20,474 - aiogram.event - INFO - Update id=524920886 is handled. Duration 142 ms by bot id=1567112575
+2025-06-24 01:05:20,675 - aiogram.event - INFO - Update id=524920887 is handled. Duration 227 ms by bot id=1567112575
+2025-06-24 01:05:58,988 - aiogram.event - INFO - Update id=524920888 is handled. Duration 155 ms by bot id=1567112575
+2025-06-24 01:06:07,026 - aiogram.event - INFO - Update id=524920889 is handled. Duration 117 ms by bot id=1567112575
+2025-06-24 01:06:48,601 - root - INFO - Пользователю 1374423290 установлена подписка: premium
+2025-06-24 01:06:48,666 - aiogram.event - INFO - Update id=524920890 is handled. Duration 158 ms by bot id=1567112575
+2025-06-24 01:06:52,460 - aiogram.event - INFO - Update id=524920891 is handled. Duration 155 ms by bot id=1567112575
+2025-06-24 01:21:54,910 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 14:07:37,770 - root - INFO - Запуск бота...
+2025-06-24 14:07:37,771 - root - INFO - Инициализация базы данных...
+2025-06-24 14:07:37,821 - root - INFO - SQLite база данных инициализирована
+2025-06-24 14:07:37,821 - root - INFO - База данных инициализирована
+2025-06-24 14:07:37,821 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 14:07:38,046 - root - INFO - Начинаем polling...
+2025-06-24 14:07:38,046 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 14:07:38,097 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 14:07:46,049 - root - INFO - Пользователь 768902323: Привет...
+2025-06-24 14:07:48,343 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-24 14:07:49,059 - aiogram.event - INFO - Update id=524920892 is handled. Duration 3244 ms by bot id=1567112575
+2025-06-24 14:07:58,537 - root - INFO - Пользователь 768902323: Исправь ошибки в тексте по граматике 
+Здравствуйте...
+2025-06-24 14:08:00,230 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-24 14:08:03,547 - aiogram.event - INFO - Update id=524920893 is handled. Duration 5104 ms by bot id=1567112575
+2025-06-24 14:09:55,807 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 14:09:56,062 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 15:55:47,227 - root - INFO - Запуск бота...
+2025-06-24 15:55:47,227 - root - INFO - Инициализация базы данных...
+2025-06-24 15:55:47,248 - root - INFO - SQLite база данных инициализирована
+2025-06-24 15:55:47,249 - root - INFO - База данных инициализирована
+2025-06-24 15:55:47,249 - root - INFO - Бот запущен и готов к работе!
+2025-06-24 15:55:47,477 - root - INFO - Начинаем polling...
+2025-06-24 15:55:47,477 - aiogram.dispatcher - INFO - Start polling
+2025-06-24 15:55:47,530 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-24 15:55:57,173 - aiogram.event - INFO - Update id=524920894 is handled. Duration 499 ms by bot id=1567112575
+2025-06-24 15:55:59,490 - aiogram.event - INFO - Update id=524920895 is handled. Duration 289 ms by bot id=1567112575
+2025-06-24 15:56:03,246 - aiogram.event - INFO - Update id=524920896 is handled. Duration 144 ms by bot id=1567112575
+2025-06-24 15:56:04,436 - aiogram.event - INFO - Update id=524920897 is handled. Duration 195 ms by bot id=1567112575
+2025-06-24 15:56:21,175 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-24 15:56:23,719 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-24 15:56:34,153 - aiogram.event - INFO - Update id=524920898 is handled. Duration 15676 ms by bot id=1567112575
+2025-06-24 15:56:46,674 - aiogram.event - INFO - Update id=524920899 is handled. Duration 131 ms by bot id=1567112575
+2025-06-24 15:56:49,773 - aiogram.event - INFO - Update id=524920900 is handled. Duration 130 ms by bot id=1567112575
+2025-06-24 15:56:53,601 - aiogram.event - INFO - Update id=524920901 is handled. Duration 139 ms by bot id=1567112575
+2025-06-24 15:56:54,823 - aiogram.event - INFO - Update id=524920902 is handled. Duration 277 ms by bot id=1567112575
+2025-06-24 15:57:09,858 - root - INFO - Пользователь 768902323: Расскажи как выучить C++ за месяц...
+2025-06-24 15:57:11,860 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-24 15:57:21,784 - aiogram.event - INFO - Update id=524920903 is handled. Duration 11989 ms by bot id=1567112575
+2025-06-24 15:57:30,393 - aiogram.event - INFO - Update id=524920904 is handled. Duration 214 ms by bot id=1567112575
+2025-06-24 15:58:30,799 - aiogram.event - INFO - Update id=524920905 is handled. Duration 248 ms by bot id=1567112575
+2025-06-24 15:58:33,887 - aiogram.event - INFO - Update id=524920906 is handled. Duration 166 ms by bot id=1567112575
+2025-06-24 15:58:37,431 - aiogram.event - INFO - Update id=524920907 is handled. Duration 194 ms by bot id=1567112575
+2025-06-24 15:58:39,104 - aiogram.event - INFO - Update id=524920908 is handled. Duration 167 ms by bot id=1567112575
+2025-06-24 15:58:40,912 - aiogram.event - INFO - Update id=524920909 is handled. Duration 212 ms by bot id=1567112575
+2025-06-24 15:58:45,862 - root - INFO - Пользователь 768902323: Ты кто...
+2025-06-24 15:58:48,208 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2025-06-24 15:58:51,120 - aiogram.event - INFO - Update id=524920910 is handled. Duration 5348 ms by bot id=1567112575
+2025-06-24 15:59:07,202 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-24 15:59:07,453 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
