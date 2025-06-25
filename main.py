@@ -12,7 +12,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (InlineKeyboardMarkup, InlineKeyboardButton,
-                           ReplyKeyboardMarkup, KeyboardButton)
+                           ReplyKeyboardMarkup, KeyboardButton, LabeledPrice)
 from openai import AsyncOpenAI
 import g4f
 from g4f.client import Client
@@ -21,8 +21,6 @@ from deep_translator import GoogleTranslator
 # Импорты наших модулей
 from config import BotConfig
 from database import DatabaseManager
-
-# from payment import PaymentManager  # Раскомментировать когда настроите ЮKassa
 
 # Инициализация
 logging.basicConfig(
@@ -37,7 +35,6 @@ logging.basicConfig(
 bot = Bot(token=BotConfig.BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 db_manager = DatabaseManager()
-# payment_manager = PaymentManager(db_manager)  # Раскомментировать когда настроите ЮKassa
 
 # Клиенты AI
 text_client = AsyncOpenAI(
@@ -189,7 +186,6 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
 
     # Добавляем бесплатные текстовые модели
     if text_free_models:
-        #keyboard.append([InlineKeyboardButton(text="🆓 Бесплатные текстовые модели", callback_data="info_free_text")])
         for model_key, model_info in text_free_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if model_key == current_model:
@@ -198,7 +194,6 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
 
     # Добавляем премиум текстовые модели
     if text_premium_models:
-        #keyboard.append([InlineKeyboardButton(text="💎 Премиум текстовые модели", callback_data="info_premium_text")])
         for model_key, model_info in text_premium_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if not is_premium:
@@ -209,8 +204,6 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
 
     # Добавляем бесплатные модели генерации
     if image_free_models:
-        #keyboard.append(
-        #    [InlineKeyboardButton(text="🎨 Бесплатная генерация изображений", callback_data="info_free_image")])
         for model_key, model_info in image_free_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if model_key == current_model:
@@ -219,8 +212,6 @@ def create_model_keyboard(current_model: str = None, is_premium: bool = False):
 
     # Добавляем премиум модели генерации
     if image_premium_models:
-        #keyboard.append(
-        #    [InlineKeyboardButton(text="🎭 Премиум генерация изображений", callback_data="info_premium_image")])
         for model_key, model_info in image_premium_models:
             name = BotConfig.MODEL_NAMES[model_key]
             if not is_premium:
@@ -245,9 +236,9 @@ def create_generation_keyboard():
 def create_subscription_plans_keyboard():
     """Создает клавиатуру с планами подписки"""
     keyboard = [
-        [InlineKeyboardButton(text="🔥 Пробная неделя - 1₽", callback_data="buy_week_trial")],
-        [InlineKeyboardButton(text="📅 Месяц - 555₽", callback_data="buy_month")],
-        [InlineKeyboardButton(text="💰 3 месяца - 1111₽", callback_data="buy_3months")],
+        [InlineKeyboardButton(text="🔥 Пробная неделя - 1⭐", callback_data="buy_week_trial")],
+        [InlineKeyboardButton(text="📅 Месяц - 555⭐", callback_data="buy_month")],
+        [InlineKeyboardButton(text="💰 3 месяца - 1111⭐", callback_data="buy_3months")],
         [InlineKeyboardButton(text="↩️ Назад", callback_data="back_main")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -580,6 +571,38 @@ def get_limit_type_for_model(model_key: str) -> str:
     return "premium_text_requests" if model_info["is_premium"] else "free_text_requests"
 
 
+async def get_user_by_identifier(identifier: str) -> tuple[int, str]:
+    """Получает ID пользователя по username или ID"""
+    # Проверяем, является ли identifier числом (ID)
+    if identifier.isdigit():
+        user_id = int(identifier)
+        try:
+            # Проверяем существование пользователя в БД
+            if await db_manager.user_exists(user_id):
+                status = await db_manager.get_user_status(user_id)
+                username = status.get('username')
+                display_name = f"@{username}" if username else f"ID: {user_id}"
+                return user_id, display_name
+            else:
+                return None, "Пользователь не найден в базе данных"
+        except Exception as e:
+            return None, f"Ошибка при проверке пользователя: {e}"
+
+    # Убираем @ если есть
+    if identifier.startswith('@'):
+        identifier = identifier[1:]
+
+    # Ищем по username в базе
+    try:
+        user_id = await db_manager.get_user_by_username(identifier)
+        if user_id:
+            return user_id, f"@{identifier}"
+        else:
+            return None, f"Пользователь @{identifier} не найден в базе данных"
+    except Exception as e:
+        return None, f"Ошибка при поиске пользователя: {e}"
+
+
 # === КОМАНДЫ ===
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message, state: FSMContext):
@@ -590,14 +613,24 @@ async def start_cmd(message: types.Message, state: FSMContext):
     # Проверяем реферальную ссылку
     args = message.text.split()
     invited_by = None
+    bonus_text = ""
 
-    if len(args) > 1 and args[1].startswith("ref"):
+    # Проверяем существование пользователя ДО обработки реферальной ссылки
+    user_exists = await db_manager.user_exists(user_id)
+
+    if len(args) > 1:
         referral_code = args[1]
+        logging.info(f"Обработка реферальной ссылки: {referral_code} для пользователя {user_id}")
+
+        # Ищем пользователя по реферальному коду
         invited_by = await db_manager.get_user_by_referral_code(referral_code)
 
         if invited_by and invited_by != user_id:
-            # Создаем пользователя с реферальной ссылкой
-            if not await db_manager.user_exists(user_id):
+            logging.info(f"Найден приглашающий пользователь: {invited_by}")
+
+            # Проверяем, НЕ существует ли уже пользователь (только для новых пользователей)
+            if not user_exists:
+                # Создаем пользователя с реферальной ссылкой
                 await db_manager.create_user(
                     user_id=user_id,
                     username=message.from_user.username,
@@ -606,27 +639,86 @@ async def start_cmd(message: types.Message, state: FSMContext):
                     invited_by=invited_by
                 )
 
-                # Отправляем уведомление о реферальном бонусе
                 bonus_text = (
                     "\n🎉 **Реферальный бонус активирован!**\n"
                     "• Вы получили удвоенные лимиты на 1 день\n"
                     "• Пригласившему вас пользователю выдан 1 день премиума"
                 )
-            else:
-                bonus_text = ""
-        else:
-            bonus_text = ""
-    else:
-        bonus_text = ""
 
-        # Создаем обычного пользователя
-        if not await db_manager.user_exists(user_id):
-            await db_manager.create_user(
-                user_id=user_id,
-                username=message.from_user.username,
-                first_name=message.from_user.first_name,
-                last_name=message.from_user.last_name
-            )
+                # Уведомляем приглашающего
+                try:
+                    inviter_status = await db_manager.get_user_status(invited_by)
+                    inviter_name = message.from_user.first_name or "Пользователь"
+
+                    await bot.send_message(
+                        invited_by,
+                        f"🎉 **Новый реферал!**\n\n"
+                        f"Пользователь {inviter_name} присоединился по вашей ссылке!\n"
+                        f"🎁 Вы получили 1 день Premium подписки\n\n"
+                        f"👥 Продолжайте приглашать друзей и получайте больше бонусов!",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    logging.error(f"Не удалось отправить уведомление пользователю {invited_by}: {e}")
+
+            else:
+                logging.info(f"Пользователь {user_id} уже существует, но может получить одноразовый реферальный бонус")
+
+                # Проверяем, не получал ли пользователь уже реферальный бонус
+                referral_already_used = await db_manager.check_referral_bonus_used(user_id)
+
+                if not referral_already_used:
+                    # Применяем реферальный бонус к существующему пользователю
+                    await db_manager.apply_referral_bonus_to_existing_user(user_id, invited_by)
+
+                    bonus_text = (
+                        "\n🎉 **Реферальный бонус активирован!**\n"
+                        "• Вы получили удвоенные лимиты на 1 день\n"
+                        "• Пригласившему вас пользователю выдан 1 день премиума"
+                    )
+
+                    # Уведомляем приглашающего
+                    try:
+                        inviter_name = message.from_user.first_name or "Пользователь"
+
+                        await bot.send_message(
+                            invited_by,
+                            f"🎉 **Новый реферал!**\n\n"
+                            f"Пользователь {inviter_name} активировал вашу реферальную ссылку!\n"
+                            f"🎁 Вы получили 1 день Premium подписки\n\n"
+                            f"👥 Продолжайте приглашать друзей и получайте больше бонусов!",
+                            parse_mode="Markdown"
+                        )
+                    except Exception as e:
+                        logging.error(f"Не удалось отправить уведомление пользователю {invited_by}: {e}")
+                else:
+                    logging.info(f"Пользователь {user_id} уже использовал реферальный бонус ранее")
+                    bonus_text = "\n💡 Реферальный бонус можно получить только один раз"
+        else:
+            if invited_by == user_id:
+                logging.warning(f"Пользователь {user_id} пытается использовать свою же реферальную ссылку")
+                bonus_text = "\n⚠️ Нельзя использовать собственную реферальную ссылку"
+            else:
+                logging.warning(f"Не найден пользователь с реферальным кодом: {referral_code}")
+                bonus_text = "\n❌ Неверная реферальная ссылка"
+
+    # Создаем обычного пользователя если он не существует и не было реферальной ссылки
+    if not user_exists and not invited_by:
+        await db_manager.create_user(
+            user_id=user_id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+
+    # Если пользователь существует, обновляем его информацию
+    if user_exists:
+        await db_manager.update_user_info(
+            user_id=user_id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
 
     # Проверяем подписку
     if not await check_user_subscription(user_id):
@@ -656,7 +748,6 @@ async def start_cmd(message: types.Message, state: FSMContext):
             "❌ Произошла ошибка при инициализации. Попробуйте через несколько секунд.",
             reply_markup=create_main_menu()
         )
-
 
 @dp.callback_query(F.data == "check_subscription")
 async def handle_check_subscription(callback_query: types.CallbackQuery):
@@ -785,10 +876,13 @@ async def handle_referral_menu(message: types.Message):
         referral_code = referral_stats["referral_code"]
         invited_count = referral_stats["invited_count"]
 
+        bot_username = (await bot.get_me()).username
+        referral_link = f"https://t.me/{bot_username}?start={referral_code}"
+
         referral_text = (
             "👥 **Реферальная программа**\n\n"
             f"🔗 Ваша реферальная ссылка:\n"
-            f"`https://t.me/{(await bot.get_me()).username}?start={referral_code}`\n\n"
+            f"`{referral_link}`\n\n"
             f"👨‍👩‍👧‍👦 Приглашено друзей: **{invited_count}**\n\n"
             "🎁 **Бонусы за приглашение:**\n"
             "• Друг получает удвоенные лимиты на 1 день\n"
@@ -961,7 +1055,7 @@ async def handle_generation_callback(callback_query: types.CallbackQuery, state:
 
 @dp.callback_query(F.data.startswith("buy_"))
 async def handle_subscription_purchase(callback_query: types.CallbackQuery):
-    """Обработчик покупки подписки"""
+    """Обработчик покупки подписки через Telegram Stars"""
     subscription_type = callback_query.data.split("_", 1)[1]
     user_id = callback_query.from_user.id
 
@@ -970,64 +1064,112 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
         await callback_query.answer("❌ Неизвестный тип подписки", show_alert=True)
         return
 
-    # Создаем клавиатуру с кнопкой оплаты
-    keyboard = [
-        [InlineKeyboardButton(
-            text="💳 Оплатить",
-            callback_data=f"pay_{subscription_type}"
-        )],
-        [InlineKeyboardButton(text="↩️ Назад", callback_data="back_subscription")]
-    ]
+    amount = BotConfig.SUBSCRIPTION_PRICES[subscription_type]
 
     prices = {
-        "week_trial": "1₽ (пробная неделя)",
-        "month": "555₽ (месяц)",
-        "3months": "1111₽ (3 месяца)"
+        "week_trial": "1⭐ (пробная неделя)",
+        "month": "555⭐ (месяц)",
+        "3months": "1111⭐ (3 месяца)"
     }
 
-    await callback_query.message.edit_text(
-        f"💳 **Оплата подписки**\n\n"
-        f"Выбран план: **{prices.get(subscription_type, 'Неизвестный')}**\n\n"
-        f"🚀 **Что входит в Premium:**\n"
-        f"• Доступ к премиум моделям (Gemini, Gemma, Kimi)\n"
-        f"• Увеличенные лимиты на все функции\n"
-        f"• Приоритетная обработка запросов\n\n"
-        f"Нажмите кнопку ниже для оплаты:",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-        parse_mode="Markdown"
-    )
+    # Создаем инвойс для Telegram Stars
+    try:
+        title = f"Premium подписка - {prices.get(subscription_type, 'План')}"
+        description = f"Premium подписка на {subscription_type.replace('_', ' ')}"
 
-    await callback_query.answer()
+        # Создаем LabeledPrice для Telegram Stars
+        labeled_price = LabeledPrice(label=title, amount=amount)
+
+        await bot.send_invoice(
+            chat_id=user_id,
+            title=title,
+            description=description,
+            payload=f"premium_{subscription_type}_{user_id}",
+            provider_token="",  # Пустой токен для Telegram Stars
+            currency="XTR",  # Валюта для Telegram Stars
+            prices=[labeled_price],
+            start_parameter=f"premium_{subscription_type}"
+        )
+
+        await callback_query.message.edit_text(
+            f"💳 **Оплата через Telegram Stars**\n\n"
+            f"Выбран план: **{prices.get(subscription_type, 'Неизвестный')}**\n\n"
+            f"🚀 **Что входит в Premium:**\n"
+            f"• Доступ к премиум моделям (Gemini, Gemma, Kimi)\n"
+            f"• Увеличенные лимиты на все функции\n"
+            f"• Приоритетная обработка запросов\n\n"
+            f"⭐ Оплата происходит через Telegram Stars\n"
+            f"Инвойс отправлен вам в личные сообщения.",
+            parse_mode="Markdown"
+        )
+
+        await callback_query.answer("Инвойс отправлен!")
+
+    except Exception as e:
+        logging.error(f"Ошибка создания инвойса: {e}")
+        await callback_query.answer("❌ Ошибка создания платежа", show_alert=True)
 
 
-@dp.callback_query(F.data.startswith("pay_"))
-async def handle_payment_creation(callback_query: types.CallbackQuery):
-    """Обработчик создания платежа"""
-    subscription_type = callback_query.data.split("_", 1)[1]
-    user_id = callback_query.from_user.id
-
-    # Пока что заглушка, так как нужно настроить ЮKassa
-    await callback_query.message.edit_text(
-        f"💳 **Создание платежа...**\n\n"
-        f"⚠️ **Система оплаты временно недоступна**\n\n"
-        f"Для получения Premium подписки обратитесь к администратору:\n"
-        f"• Напишите команду /admin в личные сообщения администратору\n"
-        f"• Укажите ваш ID: `{user_id}`\n"
-        f"• Укажите желаемый план подписки\n\n"
-        f"💰 После настройки ЮKassa здесь будет автоматическая оплата!",
-        parse_mode="Markdown"
-    )
-
-    await callback_query.answer("Функция оплаты в разработке")
+@dp.pre_checkout_query()
+async def handle_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
+    """Обработчик pre-checkout запроса"""
+    # Проверяем корректность payload
+    payload = pre_checkout_query.invoice_payload
+    if payload.startswith("premium_"):
+        await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+    else:
+        await bot.answer_pre_checkout_query(
+            pre_checkout_query.id,
+            ok=False,
+            error_message="Неверный платеж"
+        )
 
 
-@dp.callback_query(F.data.startswith("check_payment_"))
-async def handle_payment_check(callback_query: types.CallbackQuery):
-    """Обработчик проверки статуса платежа"""
-    payment_id = callback_query.data.split("_", 2)[2]
+@dp.message(F.successful_payment)
+async def handle_successful_payment(message: types.Message):
+    """Обработчик успешного платежа"""
+    payment = message.successful_payment
+    payload = payment.invoice_payload
 
-    # Заглушка для проверки платежа
-    await callback_query.answer("Функция проверки платежа в разработке")
+    try:
+        # Парсим payload: premium_subscription_type_user_id
+        parts = payload.split("_")
+        if len(parts) >= 3 and parts[0] == "premium":
+            subscription_type = parts[1]
+            user_id = int(parts[2])
+
+            # Определяем количество дней подписки
+            days_map = {
+                "week": 7,
+                "trial": 7,
+                "month": 30,
+                "3months": 90
+            }
+
+            days = days_map.get(subscription_type, 30)
+            if subscription_type == "week_trial":
+                days = 7
+
+            # Активируем подписку
+            await db_manager.set_subscription(user_id, "premium", days)
+
+            await message.answer(
+                f"✅ **Платеж успешно обработан!**\n\n"
+                f"💎 Premium подписка активирована на {days} дней\n"
+                f"🎉 Спасибо за покупку!\n\n"
+                f"Теперь вам доступны все премиум функции бота.",
+                parse_mode="Markdown"
+            )
+
+            logging.info(f"Успешный платеж от пользователя {user_id}, подписка {subscription_type} на {days} дней")
+
+        else:
+            logging.error(f"Неверный формат payload: {payload}")
+            await message.answer("❌ Ошибка обработки платежа. Обратитесь к администратору.")
+
+    except Exception as e:
+        logging.error(f"Ошибка обработки успешного платежа: {e}")
+        await message.answer("❌ Ошибка обработки платежа. Обратитесь к администратору.")
 
 
 @dp.callback_query(F.data == "back_subscription")
@@ -1158,7 +1300,8 @@ async def handle_photo(message: types.Message, state: FSMContext):
         status = await db_manager.get_user_status(user_id)
         remaining_now = status["limits"]["photo_analysis"]["remaining"]
 
-        full_response = f"🤖 {model_name}\n📊 Анализ изображений: {remaining_now}/{limit_check['limit']}\n\n" + clean_markdown_for_telegram(response_text)
+        full_response = f"🤖 {model_name}\n📊 Анализ изображений: {remaining_now}/{limit_check['limit']}\n\n" + clean_markdown_for_telegram(
+            response_text)
         await send_long_message(message, full_response)
 
     except Exception as e:
@@ -1477,13 +1620,14 @@ async def admin_cmd(message: types.Message):
         await message.answer("❌ У вас нет прав для выполнения этой команды")
         return
     await message.answer(
-        "🔧 *Админская панель*\n\n"
+        "🔧 Админская панель\n\n"
         "Доступные команды:\n"
-        "• /admin_stats - Статистика\n"
-        "• /admin_user [user_id] - Информация о пользователе\n"
-        "• /admin_premium [user_id] [days] - Выдать премиум\n"
-        "• /admin_reset [user_id] - Сбросить подписку",
-        parse_mode="HTML"
+        "• /admin_stats - Статистика бота\n"
+        "• /admin_user [user_id/@username] - Информация о пользователе\n"
+        "• /admin_premium [user_id/@username] [days] - Выдать премиум\n"
+        "• /admin_reset [user_id/@username] - Сбросить подписку\n"
+        "• /admin_broadcast [текст] - Рассылка сообщения\n\n"
+        "Можно использовать как ID пользователя, так и @username",
     )
 
 
@@ -1493,8 +1637,43 @@ async def admin_stats_cmd(message: types.Message):
     if message.from_user.id not in BotConfig.ADMIN_IDS:
         return
 
-    # Здесь можно добавить статистику из БД
-    await message.answer("📊 Статистика в разработке")
+    try:
+        stats = await db_manager.get_bot_statistics()
+
+        # Безопасно форматируем все числа
+        def safe_format(value):
+            return str(value) if value is not None else "0"
+
+        stats_text = "📊 *Статистика бота*\n\n"
+        stats_text += f"👥 Всего пользователей: *{safe_format(stats.get('total_users', 0))}*\n"
+        stats_text += f"💎 Premium пользователей: *{safe_format(stats.get('premium_users', 0))}*\n"
+        stats_text += f"🆓 Бесплатных пользователей: *{safe_format(stats.get('free_users', 0))}*\n\n"
+
+        stats_text += f"📈 *Активность за сегодня:*\n"
+        stats_text += f"🆕 Новых пользователей: *{safe_format(stats.get('new_users_today', 0))}*\n"
+        stats_text += f"💬 Текстовых запросов: *{safe_format(stats.get('text_requests_today', 0))}*\n"
+        stats_text += f"🖼 Анализов изображений: *{safe_format(stats.get('image_analysis_today', 0))}*\n"
+        stats_text += f"🎨 Генераций изображений: *{safe_format(stats.get('image_generation_today', 0))}*\n\n"
+
+        stats_text += f"👥 *Рефералы:*\n"
+        stats_text += f"🔗 Всего приглашений: *{safe_format(stats.get('total_referrals', 0))}*\n"
+        stats_text += f"🎁 Выданных бонусов: *{safe_format(stats.get('referral_bonuses_given', 0))}*\n\n"
+
+        stats_text += f"💰 *Подписки:*\n"
+        stats_text += f"⭐ Платежей за сегодня: *{safe_format(stats.get('payments_today', 0))}*\n"
+        stats_text += f"💵 Доход за сегодня: *{safe_format(stats.get('revenue_today', 0))}⭐*"
+
+        try:
+            await message.answer(stats_text, parse_mode="Markdown")
+        except Exception as markdown_error:
+            logging.warning(f"Ошибка парсинга Markdown в статистике: {markdown_error}")
+            # Отправляем без форматирования
+            plain_text = stats_text.replace('*', '').replace('_', '')
+            await message.answer(plain_text)
+
+    except Exception as e:
+        logging.error(f"Ошибка получения статистики: {e}")
+        await message.answer("❌ Ошибка получения статистики")
 
 
 @dp.message(Command("admin_user"))
@@ -1503,31 +1682,97 @@ async def admin_user_cmd(message: types.Message):
     if message.from_user.id not in BotConfig.ADMIN_IDS:
         return
 
-    args = message.text.split()
+    args = message.text.split(maxsplit=1)
     if len(args) != 2:
-        await message.answer("Использование: /admin_user <user_id>")
+        await message.answer("Использование: /admin_user <user_id/@username>")
         return
 
     try:
-        target_user_id = int(args[1])
-        status = await db_manager.get_user_status(target_user_id)
+        identifier = args[1]
+        user_id, display_name = await get_user_by_identifier(identifier)
 
-        info_text = f"👤 **Пользователь {target_user_id}**\n\n"
-        info_text += f"Имя: {status.get('first_name', 'Не указано')}\n"
-        info_text += f"Username: @{status.get('username', 'Нет')}\n"
-        info_text += f"Тариф: {status['subscription_type']}\n"
+        if not user_id:
+            await message.answer(f"❌ {display_name}")
+            return
+
+        status = await db_manager.get_user_status(user_id)
+        referral_stats = await db_manager.get_referral_stats(user_id)
+
+        # Безопасно экранируем все данные для Markdown
+        def escape_markdown(text):
+            if text is None:
+                return "Не указано"
+            # Экранируем специальные символы Markdown
+            special_chars = ['_', '*', '`', '[', ']', '(', ')', '~', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+            escaped = str(text)
+            for char in special_chars:
+                escaped = escaped.replace(char, f'\\{char}')
+            return escaped
+
+        # Форматируем данные безопасно
+        user_id_safe = escape_markdown(user_id)
+        display_name_safe = escape_markdown(display_name)
+        first_name_safe = escape_markdown(status.get('first_name', 'Не указано'))
+        username_safe = escape_markdown(status.get('username', 'Нет'))
+        subscription_type_safe = escape_markdown(status['subscription_type'])
+        referral_code_safe = escape_markdown(referral_stats['referral_code'])
+        invited_count_safe = escape_markdown(referral_stats['invited_count'])
+
+        info_text = f"👤 *Пользователь {display_name_safe}*\n\n"
+        info_text += f"🆔 ID: `{user_id_safe}`\n"
+        info_text += f"👤 Имя: {first_name_safe}\n"
+        info_text += f"📧 Username: @{username_safe}\n"
+        info_text += f"💎 Тариф: {subscription_type_safe}\n"
 
         if status['subscription_expires']:
-            expires = datetime.fromisoformat(status['subscription_expires'])
-            info_text += f"Подписка до: {expires.strftime('%d.%m.%Y %H:%M')}\n"
+            try:
+                expires = datetime.fromisoformat(status['subscription_expires'])
+                expires_safe = escape_markdown(expires.strftime('%d.%m.%Y %H:%M'))
+                info_text += f"📅 Подписка до: {expires_safe}\n"
+            except:
+                info_text += f"📅 Подписка до: данные повреждены\n"
 
-        await message.answer(info_text, parse_mode="Markdown")
+        if status['referral_bonus_expires']:
+            try:
+                bonus_expires = datetime.fromisoformat(status['referral_bonus_expires'])
+                bonus_expires_safe = escape_markdown(bonus_expires.strftime('%d.%m.%Y %H:%M'))
+                info_text += f"🎁 Реф\\. бонус до: {bonus_expires_safe}\n"
+            except:
+                info_text += f"🎁 Реф\\. бонус до: данные повреждены\n"
 
-    except ValueError:
-        await message.answer("❌ Неверный ID пользователя")
+        info_text += f"\n👥 *Рефералы:*\n"
+        info_text += f"🔗 Код: `{referral_code_safe}`\n"
+        info_text += f"👨‍👩‍👧‍👦 Приглашено: {invited_count_safe}\n"
+
+        info_text += f"\n📊 *Лимиты:*\n"
+
+        limit_names = {
+            "free_text_requests": "Бесплатные запросы",
+            "premium_text_requests": "Премиум запросы",
+            "photo_analysis": "Анализ изображений",
+            "flux_generation": "Flux генерация",
+            "midjourney_generation": "Midjourney генерация"
+        }
+
+        for limit_type, limit_info in status["limits"].items():
+            if limit_type in limit_names:
+                limit_name = limit_names[limit_type]
+                used_safe = escape_markdown(limit_info['used'])
+                limit_safe = escape_markdown(limit_info['limit'])
+                info_text += f"• {limit_name}: {used_safe}/{limit_safe}\n"
+
+        # Отправляем с Markdown v2 или без парсинга в случае ошибки
+        try:
+            await message.answer(info_text, parse_mode="Markdown")
+        except Exception as markdown_error:
+            logging.warning(f"Ошибка парсинга Markdown: {markdown_error}")
+            # Отправляем без форматирования
+            plain_text = info_text.replace('*', '').replace('`', '').replace('\\', '')
+            await message.answer(plain_text)
+
     except Exception as e:
-        await message.answer(f"❌ Ошибка: {e}")
-
+        logging.error(f"Ошибка получения информации о пользователе: {e}")
+        await message.answer(f"❌ Ошибка: {str(e)}")
 
 @dp.message(Command("admin_premium"))
 async def admin_premium_cmd(message: types.Message):
@@ -1537,21 +1782,149 @@ async def admin_premium_cmd(message: types.Message):
 
     args = message.text.split()
     if len(args) != 3:
-        await message.answer("Использование: /admin_premium <user_id> <days>")
+        await message.answer("Использование: /admin_premium <user_id/@username> <days>")
         return
 
     try:
-        target_user_id = int(args[1])
+        identifier = args[1]
         days = int(args[2])
 
-        await db_manager.set_subscription(target_user_id, "premium", days)
-        await message.answer(f"✅ Пользователю {target_user_id} выдан премиум на {days} дней")
+        user_id, display_name = await get_user_by_identifier(identifier)
+
+        if not user_id:
+            await message.answer(f"❌ {display_name}")
+            return
+
+        await db_manager.set_subscription(user_id, "premium", days)
+        await message.answer(f"✅ Пользователю {display_name} выдан премиум на {days} дней")
+
+        # Уведомляем пользователя
+        try:
+            await bot.send_message(
+                user_id,
+                f"🎉 **Поздравляем!**\n\n"
+                f"Вам была выдана Premium подписка на {days} дней!\n"
+                f"Теперь вам доступны все премиум функции бота.\n\n"
+                f"Спасибо за использование нашего сервиса! ❤️",
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
 
     except ValueError:
-        await message.answer("❌ Неверные параметры")
+        await message.answer("❌ Неверное количество дней")
     except Exception as e:
+        logging.error(f"Ошибка выдачи премиума: {e}")
         await message.answer(f"❌ Ошибка: {e}")
 
+
+@dp.message(Command("admin_reset"))
+async def admin_reset_cmd(message: types.Message):
+    """Сброс подписки"""
+    """Сброс подписки"""
+    if message.from_user.id not in BotConfig.ADMIN_IDS:
+        return
+
+    args = message.text.split(maxsplit=1)
+    if len(args) != 2:
+        await message.answer("Использование: /admin_reset <user_id/@username>")
+        return
+
+    try:
+        identifier = args[1]
+        user_id, display_name = await get_user_by_identifier(identifier)
+
+        if not user_id:
+            await message.answer(f"❌ {display_name}")
+            return
+
+        await db_manager.reset_subscription(user_id)
+        await message.answer(f"✅ Подписка пользователя {display_name} сброшена на бесплатную")
+
+        # Уведомляем пользователя
+        try:
+            await bot.send_message(
+                user_id,
+                f"ℹ️ **Уведомление**\n\n"
+                f"Ваша подписка была сброшена администратором.\n"
+                f"Теперь у вас бесплатный тариф.\n\n"
+                f"Для получения Premium используйте меню 'Подписка'.",
+                parse_mode="Markdown"
+            )
+        except Exception:
+            pass
+
+    except Exception as e:
+        logging.error(f"Ошибка сброса подписки: {e}")
+        await message.answer(f"❌ Ошибка: {e}")
+
+
+@dp.message(Command("admin_broadcast"))
+async def admin_broadcast_cmd(message: types.Message):
+    """Рассылка сообщения всем пользователям"""
+    if message.from_user.id not in BotConfig.ADMIN_IDS:
+        return
+
+    args = message.text.split(maxsplit=1)
+    if len(args) != 2:
+        await message.answer("Использование: /admin_broadcast <текст сообщения>")
+        return
+
+    broadcast_text = args[1]
+
+    try:
+        users = await db_manager.get_all_users()
+        total_users = len(users)
+        sent_count = 0
+        failed_count = 0
+
+        status_msg = await message.answer(f"📤 Начинаю рассылку для {total_users} пользователей...")
+
+        for user_id in users:
+            try:
+                # Отправляем без parse_mode чтобы избежать ошибок форматирования
+                await bot.send_message(user_id, broadcast_text)
+                sent_count += 1
+
+                # Обновляем статус каждые 10 отправленных сообщений
+                if sent_count % 10 == 0:
+                    try:
+                        await bot.edit_message_text(
+                            f"📤 Рассылка: {sent_count}/{total_users} отправлено...",
+                            chat_id=status_msg.chat.id,
+                            message_id=status_msg.message_id
+                        )
+                    except:
+                        pass  # Игнорируем ошибки редактирования статуса
+
+                # Небольшая задержка чтобы не превысить лимиты
+                await asyncio.sleep(0.05)
+
+            except Exception as e:
+                failed_count += 1
+                logging.warning(f"Не удалось отправить сообщение пользователю {user_id}: {e}")
+
+        try:
+            await bot.edit_message_text(
+                f"✅ Рассылка завершена!\n\n"
+                f"📤 Отправлено: {sent_count}\n"
+                f"❌ Не удалось: {failed_count}\n"
+                f"👥 Всего пользователей: {total_users}",
+                chat_id=status_msg.chat.id,
+                message_id=status_msg.message_id
+            )
+        except:
+            # Если не получается отредактировать, отправляем новое сообщение
+            await message.answer(
+                f"✅ Рассылка завершена!\n\n"
+                f"📤 Отправлено: {sent_count}\n"
+                f"❌ Не удалось: {failed_count}\n"
+                f"👥 Всего пользователей: {total_users}"
+            )
+
+    except Exception as e:
+        logging.error(f"Ошибка рассылки: {e}")
+        await message.answer(f"❌ Ошибка рассылки: {e}")
 
 # === ОСТАЛЬНЫЕ ОБРАБОТЧИКИ ===
 @dp.message()
