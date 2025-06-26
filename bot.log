@@ -1,0 +1,113 @@
+2025-06-26 05:57:04,361 - root - INFO - Запуск бота...
+2025-06-26 05:57:04,361 - root - INFO - Инициализация базы данных...
+2025-06-26 05:58:27,696 - root - INFO - Запуск бота...
+2025-06-26 05:58:27,696 - root - INFO - Инициализация базы данных...
+2025-06-26 05:58:27,706 - root - INFO - SQLite база данных инициализирована
+2025-06-26 05:58:27,706 - root - INFO - База данных инициализирована
+2025-06-26 05:58:27,706 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 05:58:27,924 - root - INFO - Начинаем polling...
+2025-06-26 05:58:27,924 - root - INFO - ==================================================
+2025-06-26 05:58:27,924 - root - INFO - БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ
+2025-06-26 05:58:27,924 - root - INFO - ==================================================
+2025-06-26 05:58:27,924 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 05:58:27,979 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 05:59:25,333 - aiogram.event - INFO - Update id=524921019 is handled. Duration 244 ms by bot id=1567112575
+2025-06-26 05:59:39,724 - aiogram.event - INFO - Update id=524921020 is handled. Duration 208 ms by bot id=1567112575
+2025-06-26 06:00:18,550 - aiogram.event - INFO - Update id=524921021 is handled. Duration 178 ms by bot id=1567112575
+2025-06-26 06:00:24,931 - aiogram.event - INFO - Update id=524921022 is handled. Duration 194 ms by bot id=1567112575
+2025-06-26 06:00:32,585 - root - INFO - Пользователю 1374423290 установлена подписка: free
+2025-06-26 06:00:32,723 - aiogram.event - INFO - Update id=524921023 is handled. Duration 229 ms by bot id=1567112575
+2025-06-26 06:00:46,463 - aiogram.event - INFO - Update id=524921024 is handled. Duration 148 ms by bot id=1567112575
+2025-06-26 06:00:48,471 - aiogram.event - INFO - Update id=524921025 is handled. Duration 298 ms by bot id=1567112575
+2025-06-26 06:00:51,141 - aiogram.event - INFO - Update id=524921026 is handled. Duration 54 ms by bot id=1567112575
+2025-06-26 06:00:51,286 - root - INFO - === УСПЕШНЫЙ ПЛАТЕЖ ===
+2025-06-26 06:00:51,286 - root - INFO - Пользователь: 1374423290 (@shwuex)
+2025-06-26 06:00:51,286 - root - INFO - Payload: premium_week_trial_1374423290
+2025-06-26 06:00:51,286 - root - INFO - Сумма: 1 XTR
+2025-06-26 06:00:51,286 - root - INFO - Telegram Payment Charge ID: stxqckzvUBKXorLwv0VTUu8G7FGE05sUTmRweZwqJKH9qanO50LDT0JpXcrmx_85YW4dUM6tuU90qF87Q-0xz4GEB72Tw8_ZhVwhkK_9p0Mnp8
+2025-06-26 06:00:51,286 - root - INFO - Provider Payment Charge ID: 1374423290_20
+2025-06-26 06:00:51,286 - root - INFO - =======================
+2025-06-26 06:00:51,287 - root - ERROR - ОШИБКА ОБРАБОТКИ ПЛАТЕЖА: invalid literal for int() with base 10: 'trial'
+2025-06-26 06:00:51,287 - root - ERROR - Payload: premium_week_trial_1374423290, Transaction ID: stxqckzvUBKXorLwv0VTUu8G7FGE05sUTmRweZwqJKH9qanO50LDT0JpXcrmx_85YW4dUM6tuU90qF87Q-0xz4GEB72Tw8_ZhVwhkK_9p0Mnp8
+2025-06-26 06:00:51,355 - aiogram.event - INFO - Update id=524921027 is handled. Duration 161 ms by bot id=1567112575
+2025-06-26 06:02:09,650 - aiogram.event - INFO - Update id=524921028 is handled. Duration 145 ms by bot id=1567112575
+2025-06-26 06:02:19,811 - aiogram.event - INFO - Update id=524921029 is handled. Duration 175 ms by bot id=1567112575
+2025-06-26 06:10:59,286 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [WinError 1236] The network connection was aborted by the local system
+2025-06-26 06:10:59,286 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 1567112575)
+2025-06-26 06:11:10,424 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 1567112575)
+2025-06-26 07:59:54,041 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 07:59:54,221 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 1] [SSL: APPLICATION_DATA_AFTER_CLOSE_NOTIFY] application data after close notify (_ssl.c:2775)
+2025-06-26 07:59:54,221 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 1567112575)
+2025-06-26 07:59:54,292 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:04:25,942 - root - INFO - Запуск бота...
+2025-06-26 08:04:25,942 - root - INFO - Инициализация базы данных...
+2025-06-26 08:04:25,984 - root - INFO - SQLite база данных инициализирована
+2025-06-26 08:04:25,984 - root - INFO - База данных инициализирована
+2025-06-26 08:04:25,984 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 08:04:26,145 - root - INFO - Начинаем polling...
+2025-06-26 08:04:26,145 - root - INFO - ==================================================
+2025-06-26 08:04:26,145 - root - INFO - БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ
+2025-06-26 08:04:26,145 - root - INFO - ==================================================
+2025-06-26 08:04:26,145 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 08:04:26,193 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:04:44,823 - aiogram.event - INFO - Update id=524921030 is handled. Duration 262 ms by bot id=1567112575
+2025-06-26 08:09:49,110 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 08:09:49,361 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:09:53,967 - root - INFO - Запуск бота...
+2025-06-26 08:09:53,967 - root - INFO - Инициализация базы данных...
+2025-06-26 08:09:53,968 - root - INFO - SQLite база данных инициализирована
+2025-06-26 08:09:53,968 - root - INFO - База данных инициализирована
+2025-06-26 08:09:53,968 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 08:09:54,132 - root - INFO - Начинаем polling...
+2025-06-26 08:09:54,132 - root - INFO - ==================================================
+2025-06-26 08:09:54,132 - root - INFO - БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ
+2025-06-26 08:09:54,132 - root - INFO - ==================================================
+2025-06-26 08:09:54,132 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 08:09:54,180 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:10:32,439 - root - ERROR - Ошибка в admin_cancel: Telegram server says - Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 346
+2025-06-26 08:10:32,513 - aiogram.event - INFO - Update id=524921031 is handled. Duration 279 ms by bot id=1567112575
+2025-06-26 08:22:13,271 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 08:22:13,522 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:33:44,748 - root - INFO - Запуск бота...
+2025-06-26 08:33:44,748 - root - INFO - Инициализация базы данных...
+2025-06-26 08:33:44,749 - root - INFO - SQLite база данных инициализирована
+2025-06-26 08:33:44,749 - root - INFO - База данных инициализирована
+2025-06-26 08:33:44,749 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 08:33:44,922 - root - INFO - Начинаем polling...
+2025-06-26 08:33:44,955 - root - INFO - ==================================================
+2025-06-26 08:33:44,955 - root - INFO - БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ
+2025-06-26 08:33:44,955 - root - INFO - ==================================================
+2025-06-26 08:33:44,955 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 08:33:45,005 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:33:51,412 - aiogram.event - INFO - Update id=524921032 is handled. Duration 300 ms by bot id=1567112575
+2025-06-26 08:35:33,341 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 08:35:33,593 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:35:37,560 - root - INFO - Запуск бота...
+2025-06-26 08:35:37,560 - root - INFO - Инициализация базы данных...
+2025-06-26 08:35:37,561 - root - INFO - SQLite база данных инициализирована
+2025-06-26 08:35:37,561 - root - INFO - База данных инициализирована
+2025-06-26 08:35:37,561 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 08:35:37,722 - root - INFO - Начинаем polling...
+2025-06-26 08:35:37,722 - root - INFO - ==================================================
+2025-06-26 08:35:37,722 - root - INFO - БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ
+2025-06-26 08:35:37,722 - root - INFO - ==================================================
+2025-06-26 08:35:37,722 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 08:35:37,775 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:35:42,115 - aiogram.event - INFO - Update id=524921033 is handled. Duration 223 ms by bot id=1567112575
+2025-06-26 08:37:10,221 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 08:37:10,472 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:37:13,491 - root - INFO - Запуск бота...
+2025-06-26 08:37:13,491 - root - INFO - Инициализация базы данных...
+2025-06-26 08:37:13,492 - root - INFO - SQLite база данных инициализирована
+2025-06-26 08:37:13,492 - root - INFO - База данных инициализирована
+2025-06-26 08:37:13,492 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 08:37:13,637 - root - INFO - Начинаем polling...
+2025-06-26 08:37:13,637 - root - INFO - ==================================================
+2025-06-26 08:37:13,637 - root - INFO - БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ
+2025-06-26 08:37:13,637 - root - INFO - ==================================================
+2025-06-26 08:37:13,637 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 08:37:13,682 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:37:15,651 - aiogram.event - INFO - Update id=524921034 is handled. Duration 267 ms by bot id=1567112575
+2025-06-26 08:37:30,350 - aiogram.event - INFO - Update id=524921035 is handled. Duration 148 ms by bot id=1567112575
+2025-06-26 08:37:59,435 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 08:37:59,686 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'

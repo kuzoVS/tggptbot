@@ -81,8 +81,10 @@ class DatabaseManager:
                 status TEXT DEFAULT 'pending',
                 subscription_type TEXT,
                 telegram_payment_charge_id TEXT NULL,
+                refund_reason TEXT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 completed_at TIMESTAMP NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (user_id)
             )
         ''')
@@ -101,8 +103,6 @@ class DatabaseManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        # Таблица транзакций тут должна быть
-
 
         # Индексы для оптимизации
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_usage_user_period ON usage_limits(user_id, period_start)')
@@ -111,6 +111,7 @@ class DatabaseManager:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_referrals_inviter ON referrals(inviter_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_payments_transaction ON payments(telegram_payment_charge_id)')
 
         conn.commit()
         conn.close()
@@ -463,8 +464,9 @@ class DatabaseManager:
 
         return status
 
-    async def set_subscription(self, user_id: int, subscription_type: str, days: int = None):
-        """Устанавливает подписку пользователю"""
+    async def set_subscription(self, user_id: int, subscription_type: str, days: int = None,
+                               transaction_id: str = None):
+        """Устанавливает подписку пользователю с записью транзакции"""
         if not await self.user_exists(user_id):
             await self.create_user(user_id)
 
@@ -475,19 +477,53 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('''
-            UPDATE users SET subscription_type = ?, subscription_expires = ?, updated_at = CURRENT_TIMESTAMP 
-            WHERE user_id = ?
-        ''', (subscription_type, subscription_expires, user_id))
+        try:
+            cursor.execute('''
+                UPDATE users SET subscription_type = ?, subscription_expires = ?, updated_at = CURRENT_TIMESTAMP 
+                WHERE user_id = ?
+            ''', (subscription_type, subscription_expires, user_id))
 
-        conn.commit()
-        conn.close()
+            # Если есть transaction_id, сохраняем транзакцию
+            if transaction_id:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO payments 
+                    (user_id, payment_id, telegram_payment_charge_id, amount, subscription_type, status, completed_at)
+                    VALUES (?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP)
+                ''', (user_id, f"sub_{user_id}_{int(datetime.now().timestamp())}", transaction_id, 0,
+                      subscription_type))
 
-        logging.info(f"Пользователю {user_id} установлена подписка: {subscription_type}")
+            conn.commit()
 
-    async def reset_subscription(self, user_id: int):
-        """Сбрасывает подписку на бесплатную"""
-        await self.set_subscription(user_id, "free")
+            logging.info(f"Пользователю {user_id} установлена подписка: {subscription_type}" +
+                         (f", транзакция: {transaction_id}" if transaction_id else ""))
+
+        except Exception as e:
+            logging.error(f"Ошибка установки подписки: {e}")
+            raise
+        finally:
+            conn.close()
+
+    async def get_transaction_info(self, transaction_id: str) -> Optional[Dict]:
+        """Получает информацию о транзакции"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                SELECT p.*, u.username, u.first_name, u.last_name 
+                FROM payments p
+                LEFT JOIN users u ON p.user_id = u.user_id
+                WHERE p.telegram_payment_charge_id = ? OR p.payment_id = ?
+            ''', (transaction_id, transaction_id))
+
+            result = cursor.fetchone()
+            return dict(result) if result else None
+
+        except Exception as e:
+            logging.error(f"Ошибка получения информации о транзакции: {e}")
+            return None
+        finally:
+            conn.close()
 
     async def create_payment(self, user_id: int, payment_id: str, amount: int,
                              subscription_type: str, telegram_payment_charge_id: str = None) -> bool:
@@ -497,12 +533,20 @@ class DatabaseManager:
 
         try:
             cursor.execute('''
-                INSERT INTO payments (user_id, payment_id, amount, subscription_type, telegram_payment_charge_id)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO payments (user_id, payment_id, amount, subscription_type, telegram_payment_charge_id, status)
+                VALUES (?, ?, ?, ?, ?, 'pending')
             ''', (user_id, payment_id, amount, subscription_type, telegram_payment_charge_id))
             conn.commit()
+
+            logging.info(
+                f"Платеж сохранен в БД: user_id={user_id}, amount={amount}, subscription_type={subscription_type}, transaction_id={telegram_payment_charge_id}")
             return True
-        except sqlite3.IntegrityError:
+
+        except sqlite3.IntegrityError as e:
+            logging.warning(f"Платеж уже существует: {e}")
+            return False
+        except Exception as e:
+            logging.error(f"Ошибка сохранения платежа: {e}")
             return False
         finally:
             conn.close()
@@ -512,50 +556,145 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        # Ищем платеж по ID или по telegram_payment_charge_id
-        if payment_id:
+        try:
+            # Ищем платеж по ID или по telegram_payment_charge_id
+            if payment_id:
+                cursor.execute('''
+                    SELECT * FROM payments WHERE payment_id = ? AND status = 'pending'
+                ''', (payment_id,))
+            elif telegram_payment_charge_id:
+                cursor.execute('''
+                    SELECT * FROM payments WHERE telegram_payment_charge_id = ? AND status = 'pending'
+                ''', (telegram_payment_charge_id,))
+            else:
+                logging.error("Не указан payment_id или telegram_payment_charge_id")
+                return None
+
+            payment = cursor.fetchone()
+
+            if not payment:
+                logging.warning(
+                    f"Платеж не найден или уже обработан: payment_id={payment_id}, telegram_payment_charge_id={telegram_payment_charge_id}")
+                return None
+
+            # Подтверждаем платеж
             cursor.execute('''
-                SELECT * FROM payments WHERE payment_id = ? AND status = 'pending'
-            ''', (payment_id,))
-        elif telegram_payment_charge_id:
+                UPDATE payments SET status = 'completed', completed_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (payment['id'],))
+
+            conn.commit()
+
+            # Обновляем статистику
+            await self.increment_daily_stat('payments_count')
+            await self.increment_daily_stat('revenue_stars', payment['amount'])
+
+            logging.info(
+                f"Платеж подтвержден: payment_id={payment['payment_id']}, transaction_id={payment['telegram_payment_charge_id']}")
+            return dict(payment)
+
+        except Exception as e:
+            logging.error(f"Ошибка подтверждения платежа: {e}")
+            return None
+        finally:
+            conn.close()
+
+    async def cancel_subscription(self, transaction_id: str):
+        """Отменяет подписку по номеру транзакции"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Находим платеж
             cursor.execute('''
-                SELECT * FROM payments WHERE telegram_payment_charge_id = ? AND status = 'pending'
-            ''', (telegram_payment_charge_id,))
-        else:
+                SELECT user_id FROM payments 
+                WHERE telegram_payment_charge_id = ? OR payment_id = ?
+                AND status = 'completed'
+            ''', (transaction_id, transaction_id))
+
+            result = cursor.fetchone()
+            if not result:
+                raise Exception("Транзакция не найдена или уже отменена")
+
+            user_id = result['user_id']
+
+            # Отменяем платеж
+            cursor.execute('''
+                UPDATE payments SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+                WHERE telegram_payment_charge_id = ? OR payment_id = ?
+            ''', (transaction_id, transaction_id))
+
+            # Сбрасываем подписку на бесплатную
+            cursor.execute('''
+                UPDATE users SET 
+                    subscription_type = 'free', 
+                    subscription_expires = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ?
+            ''', (user_id,))
+
+            conn.commit()
+            logging.info(f"Транзакция {transaction_id} отменена, подписка пользователя {user_id} сброшена")
+
+        except Exception as e:
+            logging.error(f"Ошибка отмены транзакции: {e}")
+            raise
+        finally:
             conn.close()
-            return None
 
-        payment = cursor.fetchone()
+    async def mark_payment_refunded(self, transaction_id: str, reason: str):
+        """Отмечает платеж как возвращенный"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
 
-        if not payment:
+        try:
+            cursor.execute('''
+                UPDATE payments 
+                SET status = 'refunded', 
+                    updated_at = CURRENT_TIMESTAMP,
+                    refund_reason = ?
+                WHERE telegram_payment_charge_id = ? OR payment_id = ?
+            ''', (reason, transaction_id, transaction_id))
+
+            conn.commit()
+            logging.info(f"Платеж {transaction_id} отмечен как возвращенный: {reason}")
+
+        except Exception as e:
+            logging.error(f"Ошибка отметки возврата: {e}")
+            raise
+        finally:
             conn.close()
-            return None
 
-        # Определяем количество дней подписки
-        days_map = {
-            "week_trial": 7,
-            "month": 30,
-            "3months": 90
-        }
+    async def get_user_transactions(self, user_id: int, limit: int = 5) -> List[Dict]:
+        """Получает последние транзакции пользователя"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
 
-        days = days_map.get(payment['subscription_type'], 30)
+        try:
+            cursor.execute('''
+                SELECT payment_id, telegram_payment_charge_id, amount, subscription_type, 
+                       status, created_at, completed_at
+                FROM payments 
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            ''', (user_id, limit))
 
-        # Активируем подписку
-        cursor.execute('''
-            UPDATE payments SET status = 'completed', completed_at = CURRENT_TIMESTAMP 
-            WHERE id = ?
-        ''', (payment['id'],))
+            transactions = []
+            for row in cursor.fetchall():
+                transactions.append(dict(row))
 
-        conn.commit()
-        conn.close()
+            return transactions
 
-        await self.set_subscription(payment['user_id'], "premium", days)
+        except Exception as e:
+            logging.error(f"Ошибка получения транзакций пользователя: {e}")
+            return []
+        finally:
+            conn.close()
 
-        # Обновляем статистику
-        await self.increment_daily_stat('payments_count')
-        await self.increment_daily_stat('revenue_stars', payment['amount'])
-
-        return dict(payment)
+    async def reset_subscription(self, user_id: int):
+        """Сбрасывает подписку на бесплатную"""
+        await self.set_subscription(user_id, "free")
 
     async def get_referral_stats(self, user_id: int) -> Dict[str, Any]:
         """Получает статистику рефералов"""
@@ -866,6 +1005,8 @@ class DatabaseManager:
             "invited_by_info": dict(invited_by_info) if invited_by_info else None,
             "has_used_referral": invited_by_info is not None
         }
+
+
 
     async def is_eligible_for_referral_bonus(self, user_id: int) -> tuple[bool, str]:
         """

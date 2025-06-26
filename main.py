@@ -24,16 +24,11 @@ from openai import AsyncOpenAI
 import g4f
 from g4f.client import Client
 from deep_translator import GoogleTranslator
-try:
-    import whisper
-    WHISPER_AVAILABLE = True
-except ImportError:
-    WHISPER_AVAILABLE = False
-    logging.warning("Whisper не установлен, используется только Google Speech Recognition")
 # Импорты наших модулей
 from config import BotConfig
 from database import DatabaseManager
 
+WHISPER_AVAILABLE = False
 # Инициализация
 logging.basicConfig(
     level=logging.INFO,
@@ -41,7 +36,8 @@ logging.basicConfig(
     handlers=[
         logging.FileHandler('bot.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
-    ]
+    ],
+    force=True  # Принудительно переопределяет существующие логгеры
 )
 
 bot = Bot(token=BotConfig.BOT_TOKEN)
@@ -834,6 +830,150 @@ def extract_text_from_txt(file_data: bytes) -> str:
         logging.error(f"Ошибка извлечения текста из TXT: {e}")
         raise
 
+
+async def process_refund(transaction_id: str, user_id: int, amount: any, display_name: str, message: types.Message,
+                         from_db: bool) -> bool:
+    """Обрабатывает возврат средств"""
+    try:
+        # Попытка возврата через Telegram API
+        refund_result = await bot.refund_star_payment(
+            user_id=user_id,
+            telegram_payment_charge_id=transaction_id
+        )
+
+        if refund_result:
+            # Успешный возврат
+            if from_db:
+                # Обновляем БД только если транзакция была в БД
+                try:
+                    await db_manager.cancel_subscription(transaction_id)
+                    db_status = "✅ БД обновлена"
+                except Exception as db_error:
+                    logging.error(f"Ошибка обновления БД: {db_error}")
+                    db_status = f"⚠️ Ошибка БД: {db_error}"
+            else:
+                db_status = "ℹ️ БД не изменена (транзакция не найдена)"
+
+            # Сообщение об успехе
+            await message.edit_text(
+                f"✅ **Возврат успешно выполнен**\n\n"
+                f"👤 Пользователь: {display_name}\n"
+                f"💰 Возвращено: {amount}⭐\n"
+                f"📝 Транзакция: `{transaction_id[:20]}...`\n"
+                f"📊 {db_status}\n\n"
+                f"Пользователь получит уведомление.",
+                parse_mode="Markdown"
+            )
+
+            # Уведомляем пользователя
+            try:
+                notification_text = (
+                    f"💰 **Возврат средств**\n\n"
+                    f"Ваш платеж был отменен администратором.\n"
+                    f"📝 Транзакция: `{transaction_id[:20]}...`\n"
+                )
+
+                if from_db:
+                    notification_text += f"💰 Возвращено: {amount} Telegram Stars\n"
+                else:
+                    notification_text += f"💰 Средства возвращены Telegram\n"
+
+                notification_text += f"\nСредства поступят на ваш баланс в течение нескольких минут."
+
+                await bot.send_message(user_id, notification_text, parse_mode="Markdown")
+
+            except Exception as e:
+                logging.warning(f"Не удалось уведомить пользователя {user_id}: {e}")
+
+            return True
+
+        else:
+            # Неудачный возврат
+            await message.edit_text(
+                f"❌ **Возврат не удался**\n\n"
+                f"👤 Пользователь: {display_name}\n"
+                f"💰 Сумма: {amount}⭐\n"
+                f"📝 Транзакция: `{transaction_id[:20]}...`\n\n"
+                f"❌ Telegram API отклонил возврат\n"
+                f"💡 Возможные причины:\n"
+                f"• Транзакция уже возвращена\n"
+                f"• Транзакция слишком старая\n"
+                f"• Неверный transaction_id\n"
+                f"• Технические проблемы Telegram\n\n"
+                f"Требуется ручная проверка!",
+                parse_mode="Markdown"
+            )
+
+            # Если это была транзакция из БД, отмечаем как отмененную
+            if from_db:
+                try:
+                    await db_manager.cancel_subscription(transaction_id)
+                    logging.info(f"Подписка отменена в БД, но возврат не удался: {transaction_id}")
+                except Exception as db_error:
+                    logging.error(f"Ошибка отмены в БД: {db_error}")
+
+            return False
+
+    except Exception as refund_error:
+        logging.error(f"Ошибка при возврате {transaction_id}: {refund_error}")
+
+        await message.edit_text(
+            f"💥 **Критическая ошибка возврата**\n\n"
+            f"👤 Пользователь: {display_name}\n"
+            f"📝 Транзакция: `{transaction_id[:20]}...`\n"
+            f"❌ Ошибка: {refund_error}\n\n"
+            f"Требуется срочное ручное вмешательство!",
+            parse_mode="Markdown"
+        )
+
+        # Уведомляем всех администраторов о критической ошибке
+        for admin_id in BotConfig.ADMIN_IDS:
+            try:
+                await bot.send_message(
+                    admin_id,
+                    f"🚨 **КРИТИЧЕСКАЯ ОШИБКА ВОЗВРАТА**\n\n"
+                    f"❌ Ошибка: {refund_error}\n"
+                    f"👤 User: {user_id}\n"
+                    f"📝 Transaction: `{transaction_id}`\n"
+                    f"💰 Amount: {amount}⭐\n\n"
+                    f"Требуется немедленное вмешательство!",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
+
+        return False
+
+    except Exception as refund_error:
+        logging.error(f"Ошибка при возврате {transaction_id}: {refund_error}")
+
+        await message.edit_text(
+            f"💥 **Критическая ошибка возврата**\n\n"
+            f"👤 Пользователь: {display_name}\n"
+            f"📝 Транзакция: `{transaction_id[:20]}...`\n"
+            f"❌ Ошибка: {refund_error}\n\n"
+            f"Требуется срочное ручное вмешательство!",
+            parse_mode="Markdown"
+        )
+
+        # Уведомляем всех администраторов о критической ошибке
+        for admin_id in BotConfig.ADMIN_IDS:
+            try:
+                await bot.send_message(
+                    admin_id,
+                    f"🚨 **КРИТИЧЕСКАЯ ОШИБКА ВОЗВРАТА**\n\n"
+                    f"❌ Ошибка: {refund_error}\n"
+                    f"👤 User: {user_id}\n"
+                    f"📝 Transaction: `{transaction_id}`\n"
+                    f"💰 Amount: {amount}⭐\n\n"
+                    f"Требуется немедленное вмешательство!",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
+
+        return False
+
 # === КОМАНДЫ ===
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message, state: FSMContext):
@@ -1289,6 +1429,11 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
         title = f"Premium подписка - {prices.get(subscription_type, 'План')}"
         description = f"Premium подписка на {subscription_type.replace('_', ' ')}"
 
+        # ИСПРАВЛЕННЫЙ PAYLOAD - всегда заканчивается на user_id
+        payload = f"premium_{subscription_type}_{user_id}"
+
+        logging.info(f"Создаем инвойс: payload='{payload}', amount={amount}, user_id={user_id}")
+
         # Создаем LabeledPrice для Telegram Stars
         labeled_price = LabeledPrice(label=title, amount=amount)
 
@@ -1296,7 +1441,7 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
             chat_id=user_id,
             title=title,
             description=description,
-            payload=f"premium_{subscription_type}_{user_id}",
+            payload=payload,  # Используем исправленный payload
             provider_token="",  # Пустой токен для Telegram Stars
             currency="XTR",  # Валюта для Telegram Stars
             prices=[labeled_price],
@@ -1316,6 +1461,7 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
         )
 
         await callback_query.answer("Инвойс отправлен!")
+        logging.info(f"Инвойс отправлен пользователю {user_id} для подписки {subscription_type}")
 
     except Exception as e:
         logging.error(f"Ошибка создания инвойса: {e}")
@@ -1342,48 +1488,201 @@ async def handle_successful_payment(message: types.Message):
     """Обработчик успешного платежа"""
     payment = message.successful_payment
     payload = payment.invoice_payload
+    transaction_id = payment.telegram_payment_charge_id
+
+    # ЛОГИРУЕМ ДЕТАЛИ ПЛАТЕЖА
+    logging.info(f"=== УСПЕШНЫЙ ПЛАТЕЖ ===")
+    logging.info(f"Пользователь: {message.from_user.id} (@{message.from_user.username})")
+    logging.info(f"Payload: {payload}")
+    logging.info(f"Сумма: {payment.total_amount} {payment.currency}")
+    logging.info(f"Telegram Payment Charge ID: {transaction_id}")
+    logging.info(f"Provider Payment Charge ID: {payment.provider_payment_charge_id}")
+    logging.info(f"=======================")
+
+    user_id = message.from_user.id
+    refund_attempted = False
 
     try:
-        # Парсим payload: premium_subscription_type_user_id
-        parts = payload.split("_")
-        if len(parts) >= 3 and parts[0] == "premium":
-            subscription_type = parts[1]
-            user_id = int(parts[2])
-            transaction_id = payment.telegram_payment_charge_id  # Получаем ID транзакции
+        # Парсим payload
+        if not payload.startswith("premium_"):
+            raise ValueError(f"Неверный формат payload: {payload}")
 
-            # Определяем количество дней подписки
-            days_map = {
-                "week": 7,
-                "trial": 7,
-                "month": 30,
-                "3months": 90
-            }
+        payload_parts = payload[8:]  # убираем "premium_"
+        last_underscore = payload_parts.rfind('_')
+        if last_underscore == -1:
+            raise ValueError(f"Не найден user_id в payload: {payload}")
 
-            days = days_map.get(subscription_type, 30)
-            if subscription_type == "week_trial":
-                days = 7
+        subscription_type = payload_parts[:last_underscore]
+        user_id_str = payload_parts[last_underscore + 1:]
 
-            # Активируем подписку и сохраняем транзакцию
+        try:
+            parsed_user_id = int(user_id_str)
+        except ValueError:
+            raise ValueError(f"Неверный user_id в payload: {user_id_str}")
+
+        if parsed_user_id != user_id:
+            logging.warning(f"User ID в payload ({parsed_user_id}) не совпадает с отправителем ({user_id})")
+
+        logging.info(f"Парсинг payload: subscription_type='{subscription_type}', user_id={user_id}")
+
+        # Определяем количество дней подписки
+        days_map = {
+            "week_trial": 7,
+            "week": 7,
+            "trial": 7,
+            "month": 30,
+            "3months": 90
+        }
+
+        days = days_map.get(subscription_type, 30)
+        logging.info(f"Подписка '{subscription_type}' на {days} дней")
+
+        # Сохраняем платеж в БД
+        payment_saved = await db_manager.create_payment(
+            user_id=user_id,
+            payment_id=f"pay_{user_id}_{int(datetime.now().timestamp())}",
+            amount=payment.total_amount,
+            subscription_type=subscription_type,
+            telegram_payment_charge_id=transaction_id
+        )
+
+        if not payment_saved:
+            # Если не удалось сохранить платеж - возвращаем деньги
+            logging.error(f"КРИТИЧЕСКАЯ ОШИБКА: Не удалось сохранить платеж {transaction_id} в БД!")
+            await attempt_refund(user_id, transaction_id, "Ошибка сохранения платежа в базе данных")
+            refund_attempted = True
+            return
+
+        # Подтверждаем платеж
+        confirmed_payment = await db_manager.confirm_payment(telegram_payment_charge_id=transaction_id)
+
+        if not confirmed_payment:
+            logging.error(f"КРИТИЧЕСКАЯ ОШИБКА: Не удалось подтвердить платеж {transaction_id}!")
+            await attempt_refund(user_id, transaction_id, "Ошибка подтверждения платежа")
+            refund_attempted = True
+            return
+
+        # Активируем подписку
+        try:
             await db_manager.set_subscription(user_id, "premium", days, transaction_id)
+        except Exception as subscription_error:
+            logging.error(
+                f"КРИТИЧЕСКАЯ ОШИБКА: Не удалось активировать подписку для {transaction_id}: {subscription_error}")
+            await attempt_refund(user_id, transaction_id, "Ошибка активации подписки")
+            refund_attempted = True
+            return
 
-            await message.answer(
-                f"✅ **Платеж успешно обработан!**\n\n"
-                f"💎 Premium подписка активирована на {days} дней\n"
-                f"🎉 Спасибо за покупку!\n\n"
-                f"Теперь вам доступны все премиум функции бота.",
-                parse_mode="Markdown"
-            )
+        # Успешное завершение
+        await message.answer(
+            f"✅ **Платеж успешно обработан!**\n\n"
+            f"💎 Premium подписка активирована на {days} дней\n"
+            f"🎉 Спасибо за покупку!\n\n"
+            f"📝 Номер транзакции: `{transaction_id[:20]}...`\n"
+            f"Теперь вам доступны все премиум функции бота.",
+            parse_mode="Markdown",
+            message_effect_id="5104841245755180586"
+        )
 
-            logging.info(f"Успешный платеж от пользователя {user_id}, подписка {subscription_type} на {days} дней, транзакция {transaction_id}")
+        logging.info(
+            f"ПЛАТЕЖ УСПЕШНО ОБРАБОТАН: пользователь {user_id}, подписка '{subscription_type}' на {days} дней, транзакция {transaction_id}")
 
-        else:
-            logging.error(f"Неверный формат payload: {payload}")
-            await message.answer("❌ Ошибка обработки платежа. Обратитесь к администратору.")
+    except ValueError as ve:
+        logging.error(f"ОШИБКА ПАРСИНГА PAYLOAD: {ve}")
+        if not refund_attempted:
+            await attempt_refund(user_id, transaction_id, f"Ошибка парсинга: {ve}")
 
     except Exception as e:
-        logging.error(f"Ошибка обработки успешного платежа: {e}")
-        await message.answer("❌ Ошибка обработки платежа. Обратитесь к администратору.")
+        logging.error(f"ОБЩАЯ ОШИБКА ОБРАБОТКИ ПЛАТЕЖА: {e}")
+        if not refund_attempted:
+            await attempt_refund(user_id, transaction_id, f"Общая ошибка: {e}")
 
+
+async def attempt_refund(user_id: int, transaction_id: str, reason: str):
+    """Попытка возврата Telegram Stars"""
+    try:
+        logging.info(f"ПОПЫТКА ВОЗВРАТА: user_id={user_id}, transaction_id={transaction_id}, reason={reason}")
+
+        # Возвращаем звезды через Telegram API
+        refund_result = await bot.refund_star_payment(
+            user_id=user_id,
+            telegram_payment_charge_id=transaction_id
+        )
+
+        if refund_result:
+            logging.info(f"ВОЗВРАТ УСПЕШЕН: {transaction_id}")
+
+            # Отмечаем в БД что платеж отменен
+            try:
+                await db_manager.mark_payment_refunded(transaction_id, reason)
+            except Exception as db_error:
+                logging.warning(f"Не удалось отметить возврат в БД: {db_error}")
+
+            # Уведомляем пользователя
+            try:
+                await bot.send_message(
+                    user_id,
+                    f"💰 **Возврат средств**\n\n"
+                    f"К сожалению, при обработке вашего платежа произошла ошибка.\n"
+                    f"Средства автоматически возвращены на ваш счет Telegram Stars.\n\n"
+                    f"📝 Номер транзакции: `{transaction_id[:20]}...`\n"
+                    f"Причина: {reason}\n\n"
+                    f"Попробуйте оформить подписку еще раз или обратитесь в поддержку.",
+                    parse_mode="Markdown"
+                )
+            except Exception as notify_error:
+                logging.warning(f"Не удалось уведомить пользователя о возврате: {notify_error}")
+        else:
+            logging.error(f"ВОЗВРАТ НЕ УДАЛСЯ: {transaction_id}")
+
+            # Уведомляем администраторов о проблеме
+            for admin_id in BotConfig.ADMIN_IDS:
+                try:
+                    await bot.send_message(
+                        admin_id,
+                        f"🚨 **КРИТИЧЕСКАЯ ОШИБКА**\n\n"
+                        f"Не удалось вернуть средства пользователю!\n"
+                        f"👤 User ID: {user_id}\n"
+                        f"💳 Transaction: `{transaction_id}`\n"
+                        f"❌ Причина: {reason}\n\n"
+                        f"Требуется ручной возврат!",
+                        parse_mode="Markdown"
+                    )
+                except Exception:
+                    pass
+
+            # Уведомляем пользователя о проблеме
+            try:
+                await bot.send_message(
+                    user_id,
+                    f"❌ **Ошибка обработки платежа**\n\n"
+                    f"При обработке вашего платежа произошла ошибка.\n"
+                    f"Автоматический возврат средств не удался.\n\n"
+                    f"📝 Номер транзакции: `{transaction_id[:20]}...`\n"
+                    f"Обратитесь в поддержку для ручного возврата средств.",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
+
+    except Exception as refund_error:
+        logging.error(f"ОШИБКА ПРИ ВОЗВРАТЕ: {refund_error}")
+
+        # Уведомляем администраторов
+        for admin_id in BotConfig.ADMIN_IDS:
+            try:
+                await bot.send_message(
+                    admin_id,
+                    f"🚨 **КРИТИЧЕСКАЯ ОШИБКА ВОЗВРАТА**\n\n"
+                    f"Ошибка при попытке возврата средств!\n"
+                    f"👤 User ID: {user_id}\n"
+                    f"💳 Transaction: `{transaction_id}`\n"
+                    f"❌ Ошибка возврата: {refund_error}\n"
+                    f"❌ Причина платежа: {reason}\n\n"
+                    f"Требуется срочное ручное вмешательство!",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
 
 @dp.callback_query(F.data == "back_subscription")
 async def handle_back_to_subscription(callback_query: types.CallbackQuery):
@@ -2000,7 +2299,7 @@ async def handle_text(message: types.Message, state: FSMContext):
         model_name = BotConfig.MODEL_NAMES[current_model]
         #full_response = f"🤖 {model_name}\n\n" + clean_markdown_for_telegram(response_text)
         full_response = clean_markdown_for_telegram(response_text)
-        await send_long_message(message, full_response)
+        await send_long_message(message, full_response )
 
     except Exception as e:
         try:
@@ -2190,7 +2489,7 @@ async def admin_cmd(message: types.Message):
         "• /admin_user [user_id/@username] - Информация о пользователе\n"
         "• /admin_premium [user_id/@username] [days] - Выдать премиум\n"
         "• /admin_reset [user_id/@username] - Сбросить подписку\n"
-        "• /admin_broadcast [текст] - Рассылка сообщения\n\n"
+        "• /admin_broadcast [текст] - Рассылка сообщения\n"
         "• /admin_cancel [транзакция] - Отмена оплаты\n\n"
         "Можно использовать как ID пользователя, так и @username",
     )
@@ -2243,55 +2542,130 @@ async def admin_stats_cmd(message: types.Message):
 
 @dp.message(Command("admin_cancel"))
 async def admin_cancel_cmd(message: types.Message):
-    """Отмена транзакции и подписки"""
+    """Отмена транзакции и подписки с возвратом средств"""
     if message.from_user.id not in BotConfig.ADMIN_IDS:
         return
 
     args = message.text.split(maxsplit=1)
-    if len(args) != 2:
-        await message.answer("Использование: /admin_cancel <transaction_id>")
+    if len(args) < 2:
+        await message.answer(
+            "Использование:\n"
+            "/admin_cancel <transaction_id>\n"
+            "/admin_cancel <transaction_id> <user_id>\n\n"
+            "Если транзакции нет в БД, укажите user_id для возврата"
+        )
         return
 
     transaction_id = args[1]
+    manual_user_id = None
 
-    try:
-        # Получаем информацию о транзакции из базы данных
-        transaction_info = await db_manager.get_transaction_info(transaction_id)
-
-        if not transaction_info:
-            await message.answer(f"❌ Транзакция {transaction_id} не найдена")
+    # Проверяем, указан ли user_id вручную
+    if len(args) == 3:
+        try:
+            manual_user_id = int(args[2])
+        except ValueError:
+            await message.answer("❌ Неверный формат user_id. Должно быть число.")
             return
 
-        user_id = transaction_info['user_id']
-        display_name = f"@{transaction_info['username']}" if transaction_info['username'] else f"ID: {user_id}"
+    try:
+        # Получаем информацию о транзакции из БД
+        transaction_info = await db_manager.get_transaction_info(transaction_id)
 
-        # Отменяем подписку
-        await db_manager.cancel_subscription(transaction_id)
+        if transaction_info:
+            # Транзакция найдена в БД
+            user_id = transaction_info['user_id']
+            amount = transaction_info['amount']
+            status = transaction_info['status']
+            subscription_type = transaction_info.get('subscription_type', 'unknown')
+            display_name = f"@{transaction_info['username']}" if transaction_info['username'] else f"ID: {user_id}"
 
-        await message.answer(
-            f"✅ Транзакция отменена\n\n"
-            f"📝 Номер транзакции: `{transaction_id}`\n"
-            f"👤 Пользователь: {display_name}\n"
-            f"💎 Подписка отменена\n"
-            f"💰 Средства возвращены",
-            parse_mode="Markdown"
-        )
+            if status == 'cancelled':
+                await message.answer(f"⚠️ Транзакция уже отменена\nID: {transaction_id[:30]}...")
+                return
 
-        # Уведомляем пользователя
-        try:
-            await bot.send_message(
-                user_id,
-                f"ℹ️ **Уведомление**\n\n"
-                f"Ваша подписка по транзакции `{transaction_id}` была отменена администратором.\n"
-                f"Средства будут возвращены в соответствии с правилами сервиса.\n\n"
-                f"Для уточнения деталей обратитесь в поддержку.",
-                parse_mode="Markdown"
+            if status == 'refunded':
+                await message.answer(f"⚠️ По транзакции уже произведен возврат\nID: {transaction_id[:30]}...")
+                return
+
+            # Стандартное подтверждение для транзакции из БД
+            short_transaction_id = transaction_id[:30] + "..." if len(transaction_id) > 30 else transaction_id
+
+            await message.answer(
+                f"⚠️ ПОДТВЕРЖДЕНИЕ ОТМЕНЫ (транзакция в БД)\n\n"
+                f"👤 Пользователь: {display_name}\n"
+                f"💰 Сумма: {amount} звезд\n"
+                f"📝 Транзакция: {short_transaction_id}\n"
+                f"📋 Тип: {subscription_type}\n"
+                f"📊 Статус: {status}\n\n"
+                f"Это действие:\n"
+                f"• Отменит подписку пользователя\n"
+                f"• Вернет {amount} Telegram Stars\n"
+                f"• Обновит статус в БД\n"
+                f"• Не может быть отменено\n\n"
+                f"Продолжить?",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="✅ Да, отменить", callback_data=f"confirm_cancel_db_{transaction_id}")],
+                    [InlineKeyboardButton(text="❌ Нет, не отменять", callback_data="cancel_cancel")]
+                ])
             )
-        except Exception as e:
-            logging.warning(f"Не удалось уведомить пользователя {user_id}: {e}")
+
+        else:
+            # Транзакция НЕ найдена в БД
+            if not manual_user_id:
+                short_transaction_id = transaction_id[:30] + "..." if len(transaction_id) > 30 else transaction_id
+
+                await message.answer(
+                    f"❌ ТРАНЗАКЦИЯ НЕ НАЙДЕНА В БД\n\n"
+                    f"📝 Транзакция: {short_transaction_id}\n\n"
+                    f"💡 Для принудительного возврата используйте команду:\n"
+                    f"/admin_cancel {transaction_id} 1374423290\n\n"
+                    f"Где:\n"
+                    f"• Первый параметр - полный ID транзакции\n"
+                    f"• Второй параметр - ID пользователя\n\n"
+                    f"⚠️ Внимание: Принудительный возврат попытается\n"
+                    f"вернуть средства без проверки суммы и статуса!"
+                )
+                return
+
+            # Принудительный возврат с указанным user_id
+            try:
+                # Попытаемся получить информацию о пользователе
+                user_status = await db_manager.get_user_status(manual_user_id)
+                if user_status:
+                    display_name = f"@{user_status['username']}" if user_status['username'] else f"ID: {manual_user_id}"
+                    subscription_info = f"Тип: {user_status['subscription_type']}"
+                else:
+                    display_name = f"ID: {manual_user_id}"
+                    subscription_info = "Пользователь не найден в БД"
+
+            except Exception:
+                display_name = f"ID: {manual_user_id}"
+                subscription_info = "Информация недоступна"
+
+            # Подтверждение принудительного возврата
+            short_transaction_id = transaction_id[:30] + "..." if len(transaction_id) > 30 else transaction_id
+
+            await message.answer(
+                f"⚠️ ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ\n\n"
+                f"👤 Пользователь: {display_name}\n"
+                f"📝 Транзакция: {short_transaction_id}\n"
+                f"📊 {subscription_info}\n\n"
+                f"🚨 ВНИМАНИЕ:\n"
+                f"• Транзакция не найдена в нашей БД\n"
+                f"• Сумма возврата неизвестна\n"
+                f"• Telegram сам определит сумму\n"
+                f"• Подписка может не сброситься\n"
+                f"• Действие необратимо\n\n"
+                f"Все равно попытаться вернуть средства?",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="🚨 Да, принудительный возврат",
+                                          callback_data=f"confirm_cancel_force_{transaction_id}_{manual_user_id}")],
+                    [InlineKeyboardButton(text="❌ Нет, отменить", callback_data="cancel_cancel")]
+                ])
+            )
 
     except Exception as e:
-        logging.error(f"Ошибка отмены транзакции: {e}")
+        logging.error(f"Ошибка в admin_cancel: {e}")
         await message.answer(f"❌ Ошибка: {e}")
 
 @dp.message(Command("admin_user"))
@@ -2315,19 +2689,19 @@ async def admin_user_cmd(message: types.Message):
 
         status = await db_manager.get_user_status(user_id)
         referral_stats = await db_manager.get_referral_stats(user_id)
+        transactions = await db_manager.get_user_transactions(user_id, 5)  # Последние 5 транзакций
 
         # Безопасно экранируем все данные для Markdown
         def escape_markdown(text):
             if text is None:
                 return "Не указано"
-            # Экранируем специальные символы Markdown
             special_chars = ['_', '*', '`', '[', ']', '(', ')', '~', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
             escaped = str(text)
             for char in special_chars:
                 escaped = escaped.replace(char, f'\\{char}')
             return escaped
 
-        # Форматируем данные безопасно
+        # Форматируем основную информацию
         user_id_safe = escape_markdown(user_id)
         display_name_safe = escape_markdown(display_name)
         first_name_safe = escape_markdown(status.get('first_name', 'Не указано'))
@@ -2358,6 +2732,24 @@ async def admin_user_cmd(message: types.Message):
             except:
                 info_text += f"🎁 Реф\\. бонус до: данные повреждены\n"
 
+        # Добавляем информацию о транзакциях
+        info_text += f"\n💳 *Последние транзакции:*\n"
+        if transactions:
+            for idx, transaction in enumerate(transactions, 1):
+                try:
+                    created_date = datetime.fromisoformat(transaction['created_at']).strftime('%d.%m.%Y')
+                    transaction_id = transaction.get('telegram_payment_charge_id', transaction.get('payment_id', 'N/A'))
+                    amount = transaction.get('amount', 0)
+                    status_emoji = "✅" if transaction['status'] == 'completed' else "❌" if transaction[
+                                                                                               'status'] == 'cancelled' else "⏳"
+
+                    info_text += f"{idx}\\. {status_emoji} `{escape_markdown(transaction_id)[:20]}{'...' if len(str(transaction_id)) > 20 else ''}`\n"
+                    info_text += f"   📅 {escape_markdown(created_date)} \\| 💰 {escape_markdown(amount)}⭐ \\| {escape_markdown(transaction['subscription_type'])}\n"
+                except Exception as e:
+                    info_text += f"{idx}\\. ❓ Ошибка отображения транзакции\n"
+        else:
+            info_text += "Транзакций не найдено\n"
+
         info_text += f"\n👥 *Рефералы:*\n"
         info_text += f"🔗 Код: `{referral_code_safe}`\n"
         info_text += f"👨‍👩‍👧‍👦 Приглашено: {invited_count_safe}\n"
@@ -2379,7 +2771,7 @@ async def admin_user_cmd(message: types.Message):
                 limit_safe = escape_markdown(limit_info['limit'])
                 info_text += f"• {limit_name}: {used_safe}/{limit_safe}\n"
 
-        # Отправляем с Markdown v2 или без парсинга в случае ошибки
+        # Отправляем с обработкой ошибок
         try:
             await message.answer(info_text, parse_mode="Markdown")
         except Exception as markdown_error:
@@ -2391,6 +2783,7 @@ async def admin_user_cmd(message: types.Message):
     except Exception as e:
         logging.error(f"Ошибка получения информации о пользователе: {e}")
         await message.answer(f"❌ Ошибка: {str(e)}")
+
 
 @dp.message(Command("admin_premium"))
 async def admin_premium_cmd(message: types.Message):
@@ -2475,6 +2868,122 @@ async def admin_reset_cmd(message: types.Message):
     except Exception as e:
         logging.error(f"Ошибка сброса подписки: {e}")
         await message.answer(f"❌ Ошибка: {e}")
+
+
+@dp.callback_query(F.data.startswith("confirm_cancel_db_"))
+async def handle_confirm_cancel_db(callback_query: types.CallbackQuery):
+    """Подтверждение отмены транзакции из БД"""
+    if callback_query.from_user.id not in BotConfig.ADMIN_IDS:
+        await callback_query.answer("❌ Нет прав", show_alert=True)
+        return
+
+    transaction_id = callback_query.data.split("confirm_cancel_db_", 1)[1]
+
+    try:
+        # Получаем информацию о транзакции
+        transaction_info = await db_manager.get_transaction_info(transaction_id)
+
+        if not transaction_info:
+            await callback_query.message.edit_text("❌ Транзакция не найдена в БД")
+            return
+
+        user_id = transaction_info['user_id']
+        amount = transaction_info['amount']
+        display_name = f"@{transaction_info['username']}" if transaction_info['username'] else f"ID: {user_id}"
+
+        # Обновляем сообщение
+        short_transaction_id = transaction_id[:30] + "..." if len(transaction_id) > 30 else transaction_id
+
+        await callback_query.message.edit_text(
+            f"🔄 ОБРАБОТКА ОТМЕНЫ (БД)...\n\n"
+            f"👤 Пользователь: {display_name}\n"
+            f"💰 Возвращаем: {amount} звезд\n"
+            f"📝 Транзакция: {short_transaction_id}"
+        )
+
+        # Пытаемся вернуть средства
+        success = await process_refund(transaction_id, user_id, amount, display_name, callback_query.message, True)
+
+        if success:
+            logging.info(
+                f"АДМИН ОТМЕНА (БД): транзакция {transaction_id}, возвращено {amount} звезд пользователю {user_id}")
+
+    except Exception as e:
+        logging.error(f"Ошибка обработки отмены из БД: {e}")
+        await callback_query.message.edit_text(f"❌ Ошибка: {e}")
+
+    await callback_query.answer()
+
+
+# ОБРАБОТЧИК ПРИНУДИТЕЛЬНОГО ВОЗВРАТА
+@dp.callback_query(F.data.startswith("confirm_cancel_force_"))
+async def handle_confirm_cancel_force(callback_query: types.CallbackQuery):
+    """Подтверждение принудительного возврата"""
+    if callback_query.from_user.id not in BotConfig.ADMIN_IDS:
+        await callback_query.answer("❌ Нет прав", show_alert=True)
+        return
+
+    try:
+        # Парсим данные: confirm_cancel_force_{transaction_id}_{user_id}
+        data_parts = callback_query.data.split("confirm_cancel_force_", 1)[1]
+        last_underscore = data_parts.rfind('_')
+
+        if last_underscore == -1:
+            await callback_query.message.edit_text("❌ Ошибка парсинга данных")
+            return
+
+        transaction_id = data_parts[:last_underscore]
+        user_id = int(data_parts[last_underscore + 1:])
+
+        # Получаем отображаемое имя
+        try:
+            user_status = await db_manager.get_user_status(user_id)
+            display_name = f"@{user_status['username']}" if user_status and user_status[
+                'username'] else f"ID: {user_id}"
+        except:
+            display_name = f"ID: {user_id}"
+
+        # Обновляем сообщение
+        short_transaction_id = transaction_id[:20] + "..." if len(transaction_id) > 20 else transaction_id
+
+        try:
+            await callback_query.message.edit_text(
+                f"🚨 **ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ\\.\\.\\.**\n\n"
+                f"👤 Пользователь: {display_name}\n"
+                f"💰 Сумма: определяется Telegram\n"
+                f"📝 Транзакция: `{short_transaction_id}`\n\n"
+                f"⏳ Попытка возврата через Telegram API\\.\\.\\.",
+                parse_mode="MarkdownV2"
+            )
+        except Exception as markdown_error:
+            logging.warning(f"Ошибка MarkdownV2 в принудительном возврате: {markdown_error}")
+            await callback_query.message.edit_text(
+                f"🚨 ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ...\n\n"
+                f"👤 Пользователь: {display_name}\n"
+                f"💰 Сумма: определяется Telegram\n"
+                f"📝 Транзакция: {short_transaction_id}\n\n"
+                f"⏳ Попытка возврата через Telegram API..."
+            )
+
+        # Пытаемся вернуть средства без знания суммы
+        success = await process_refund(transaction_id, user_id, "неизвестно", display_name, callback_query.message,
+                                       False)
+
+        if success:
+            logging.info(f"ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ: транзакция {transaction_id}, пользователь {user_id}")
+
+    except Exception as e:
+        logging.error(f"Ошибка принудительного возврата: {e}")
+        await callback_query.message.edit_text(f"❌ Ошибка: {e}")
+
+    await callback_query.answer()
+
+
+@dp.callback_query(F.data == "cancel_cancel")
+async def handle_cancel_cancel(callback_query: types.CallbackQuery):
+    """Отмена процедуры отмены"""
+    await callback_query.message.edit_text("❌ Процедура отмены прервана")
+    await callback_query.answer()
 
 
 @dp.message(Command("admin_broadcast"))
@@ -2579,6 +3088,9 @@ async def main():
 
     await bot.delete_webhook(drop_pending_updates=True)
     logging.info("Начинаем polling...")
+    logging.info("=" * 50)
+    logging.info("БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ")
+    logging.info("=" * 50)
     await dp.start_polling(bot)
 
 
