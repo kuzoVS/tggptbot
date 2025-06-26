@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import re
 import base64
 import aiohttp
 import sys
@@ -8,6 +7,7 @@ from datetime import datetime
 from typing import Any, Awaitable, Callable, Dict
 import speech_recognition as sr
 import pydub
+import re
 from pydub import AudioSegment
 import tempfile
 import os
@@ -609,67 +609,127 @@ async def get_user_by_identifier(identifier: str) -> tuple[int, str]:
     except Exception as e:
         return None, f"Ошибка при поиске пользователя: {e}"
 
+
 async def download_voice_as_wav(file_id: str) -> str:
     """Скачивает голосовое сообщение и конвертирует в WAV"""
+    temp_ogg = None
+    temp_wav = None
+
     try:
         file_info = await bot.get_file(file_id)
         file_path = file_info.file_path
         file_url = f"https://api.telegram.org/file/bot{BotConfig.BOT_TOKEN}/{file_path}"
 
-        # Создаем временные файлы
-        temp_ogg = tempfile.NamedTemporaryFile(delete=False, suffix='.ogg')
-        temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+        # Создаем временные файлы с правильным режимом
+        temp_ogg = tempfile.NamedTemporaryFile(delete=False, suffix='.ogg', mode='wb')
+        temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix='.wav', mode='wb')
+
+        # Закрываем файлы сразу после создания
+        temp_ogg_path = temp_ogg.name
+        temp_wav_path = temp_wav.name
+        temp_ogg.close()
+        temp_wav.close()
 
         async with aiohttp.ClientSession() as session:
             async with session.get(file_url) as response:
                 if response.status == 200:
                     audio_data = await response.read()
-                    temp_ogg.write(audio_data)
-                    temp_ogg.close()
+
+                    # Записываем данные в бинарном режиме
+                    with open(temp_ogg_path, 'wb') as f:
+                        f.write(audio_data)
 
                     # Конвертируем OGG в WAV
-                    audio = AudioSegment.from_ogg(temp_ogg.name)
-                    audio.export(temp_wav.name, format="wav")
+                    try:
+                        audio = AudioSegment.from_file(temp_ogg_path, format="ogg")
+                        audio.export(temp_wav_path, format="wav")
+                    except Exception as e:
+                        # Если pydub не работает, пробуем через ffmpeg напрямую
+                        import subprocess
+                        result = subprocess.run([
+                            'ffmpeg', '-i', temp_ogg_path,
+                            '-acodec', 'pcm_s16le', '-ar', '16000',
+                            temp_wav_path, '-y'
+                        ], capture_output=True, text=True)
+
+                        if result.returncode != 0:
+                            raise Exception(f"FFmpeg ошибка: {result.stderr}")
 
                     # Удаляем временный OGG файл
-                    os.unlink(temp_ogg.name)
+                    try:
+                        os.unlink(temp_ogg_path)
+                    except:
+                        pass
 
-                    return temp_wav.name
+                    return temp_wav_path
                 else:
                     raise Exception(f"Не удалось скачать аудио: {response.status}")
+
     except Exception as e:
+        # Очищаем временные файлы при ошибке
+        for temp_file in [temp_ogg, temp_wav]:
+            if temp_file and hasattr(temp_file, 'name'):
+                try:
+                    os.unlink(temp_file.name)
+                except:
+                    pass
+
         logging.error(f"Ошибка при скачивании аудио: {e}")
         raise
+
 
 async def transcribe_audio(wav_file_path: str) -> str:
     """Транскрибирует аудио в текст"""
     try:
         recognizer = sr.Recognizer()
 
+        # Проверяем существование файла
+        if not os.path.exists(wav_file_path):
+            raise Exception("WAV файл не найден")
+
+        # Настраиваем параметры распознавания
+        recognizer.energy_threshold = 300
+        recognizer.dynamic_energy_threshold = True
+        recognizer.pause_threshold = 0.8
+
         with sr.AudioFile(wav_file_path) as source:
+            # Настраиваем шумоподавление
+            recognizer.adjust_for_ambient_noise(source, duration=0.5)
             audio_data = recognizer.record(source)
 
         # Попытка распознавания на русском
         try:
             text = recognizer.recognize_google(audio_data, language='ru-RU')
-            return text
-        except sr.UnknownValueError:
-            # Если не получилось на русском, пробуем английский
-            try:
-                text = recognizer.recognize_google(audio_data, language='en-US')
+            if text.strip():
                 return text
-            except sr.UnknownValueError:
-                return "Не удалось распознать речь"
+        except sr.UnknownValueError:
+            pass
         except sr.RequestError as e:
-            raise Exception(f"Ошибка сервиса распознавания: {e}")
+            logging.warning(f"Ошибка Google Speech API (ru): {e}")
+
+        # Если не получилось на русском, пробуем английский
+        try:
+            text = recognizer.recognize_google(audio_data, language='en-US')
+            if text.strip():
+                return text
+        except sr.UnknownValueError:
+            pass
+        except sr.RequestError as e:
+            logging.warning(f"Ошибка Google Speech API (en): {e}")
+
+        return "Не удалось распознать речь"
 
     except Exception as e:
         logging.error(f"Ошибка транскрибации: {e}")
         raise
     finally:
-        # Удаляем временный файл
-        if os.path.exists(wav_file_path):
-            os.unlink(wav_file_path)
+        # Всегда удаляем временный файл
+        try:
+            if os.path.exists(wav_file_path):
+                os.unlink(wav_file_path)
+        except Exception as e:
+            logging.warning(f"Не удалось удалить временный файл {wav_file_path}: {e}")
+
 
 async def download_document(file_id: str) -> tuple[bytes, str]:
     """Скачивает документ из Telegram"""
@@ -1434,6 +1494,7 @@ async def handle_photo(message: types.Message, state: FSMContext):
         )
 
 
+# Улучшенный обработчик голоса
 @dp.message(F.voice)
 async def handle_voice(message: types.Message, state: FSMContext):
     """Обработчик голосовых сообщений (только для премиум)"""
@@ -1466,6 +1527,16 @@ async def handle_voice(message: types.Message, state: FSMContext):
         )
         return
 
+    # Проверяем размер голосового сообщения
+    if message.voice.duration > 60:  # Максимум 60 секунд
+        await message.answer(
+            "❌ **Слишком длинное сообщение**\n\n"
+            "📏 Максимальная длительность: 60 секунд\n"
+            f"⏱ Длительность вашего сообщения: {message.voice.duration} сек\n\n"
+            "Пожалуйста, запишите более короткое сообщение."
+        )
+        return
+
     # Используем лимит
     if not await db_manager.use_limit(user_id, "voice_processing"):
         await message.answer("❌ Не удалось использовать лимит. Попробуйте позже.")
@@ -1476,21 +1547,34 @@ async def handle_voice(message: types.Message, state: FSMContext):
         f"🎤 Распознаю речь... (осталось: {remaining}/{limit_check['limit']})"
     )
 
+    wav_file_path = None
     try:
         # Скачиваем и конвертируем аудио
         wav_file_path = await download_voice_as_wav(message.voice.file_id)
 
+        # Обновляем статус
+        await bot.edit_message_text(
+            f"🧠 Анализирую речь... (осталось: {remaining}/{limit_check['limit']})",
+            chat_id=processing_msg.chat.id,
+            message_id=processing_msg.message_id
+        )
+
         # Распознаем речь
         transcribed_text = await transcribe_audio(wav_file_path)
+        wav_file_path = None  # Файл удален в transcribe_audio
 
         if transcribed_text == "Не удалось распознать речь":
             await bot.edit_message_text(
-                "❌ Не удалось распознать речь. Попробуйте:\n"
-                "• Говорить более четко\n"
+                "❌ **Не удалось распознать речь**\n\n"
+                "💡 **Попробуйте:**\n"
+                "• Говорить более четко и медленно\n"
                 "• Записать в тихом месте\n"
-                "• Использовать другой язык",
+                "• Держать телефон ближе к лицу\n"
+                "• Говорить на русском или английском языке\n"
+                "• Написать текстом",
                 chat_id=processing_msg.chat.id,
-                message_id=processing_msg.message_id
+                message_id=processing_msg.message_id,
+                parse_mode="Markdown"
             )
             return
 
@@ -1523,20 +1607,40 @@ async def handle_voice(message: types.Message, state: FSMContext):
         await handle_text(temp_message, state)
 
     except Exception as e:
+        # Очищаем временный файл при ошибке
+        if wav_file_path and os.path.exists(wav_file_path):
+            try:
+                os.unlink(wav_file_path)
+            except:
+                pass
+
         try:
             await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
         except:
             pass
 
         logging.error(f"Ошибка обработки голосового сообщения: {e}")
-        await message.answer(
-            "❌ Ошибка обработки голосового сообщения\n"
-            "💡 Попробуйте:\n"
-            "• Записать сообщение заново\n"
-            "• Проверить качество записи\n"
-            "• Написать текстом"
-        )
 
+        if "codec can't decode" in str(e) or "invalid start byte" in str(e):
+            error_msg = (
+                "❌ **Ошибка обработки аудио**\n\n"
+                "🔧 Проблема с форматом аудиофайла\n\n"
+                "💡 **Попробуйте:**\n"
+                "• Записать сообщение заново\n"
+                "• Использовать другое приложение для записи\n"
+                "• Написать текстом"
+            )
+        else:
+            error_msg = (
+                "❌ **Ошибка обработки голосового сообщения**\n\n"
+                "💡 **Попробуйте:**\n"
+                "• Записать сообщение заново\n"
+                "• Проверить качество записи\n"
+                "• Написать текстом\n"
+                "• Обратиться к администратору"
+            )
+
+        await message.answer(error_msg, parse_mode="Markdown")
 
 @dp.message(F.document)
 async def handle_document(message: types.Message, state: FSMContext):

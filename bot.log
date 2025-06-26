@@ -958,3 +958,29 @@ aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't
 2025-06-26 02:56:19,534 - aiogram.event - INFO - Update id=524920996 is handled. Duration 1993 ms by bot id=1567112575
 2025-06-26 02:56:26,671 - aiogram.dispatcher - INFO - Polling stopped
 2025-06-26 02:56:26,922 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 03:32:20,262 - root - INFO - Запуск бота...
+2025-06-26 03:32:20,262 - root - INFO - Инициализация базы данных...
+2025-06-26 03:32:20,263 - root - INFO - SQLite база данных инициализирована
+2025-06-26 03:32:20,263 - root - INFO - База данных инициализирована
+2025-06-26 03:32:20,263 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 03:32:20,439 - root - INFO - Начинаем polling...
+2025-06-26 03:32:20,439 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 03:32:20,490 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 03:32:50,551 - root - ERROR - Ошибка транскрибации: 'utf-8' codec can't decode byte 0xc1 in position 53: invalid start byte
+2025-06-26 03:32:50,608 - root - ERROR - Ошибка обработки голосового сообщения: 'utf-8' codec can't decode byte 0xc1 in position 53: invalid start byte
+2025-06-26 03:32:50,677 - aiogram.event - INFO - Update id=524921010 is handled. Duration 1608 ms by bot id=1567112575
+2025-06-26 03:33:33,201 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 03:33:33,453 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 03:35:04,828 - root - INFO - Запуск бота...
+2025-06-26 03:35:04,828 - root - INFO - Инициализация базы данных...
+2025-06-26 03:35:04,829 - root - INFO - SQLite база данных инициализирована
+2025-06-26 03:35:04,829 - root - INFO - База данных инициализирована
+2025-06-26 03:35:04,829 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 03:35:04,988 - root - INFO - Начинаем polling...
+2025-06-26 03:35:04,988 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 03:35:05,035 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 03:35:39,103 - root - ERROR - Ошибка транскрибации: 'utf-8' codec can't decode byte 0xc1 in position 53: invalid start byte
+2025-06-26 03:35:39,162 - root - ERROR - Ошибка обработки голосового сообщения: 'utf-8' codec can't decode byte 0xc1 in position 53: invalid start byte
+2025-06-26 03:35:39,231 - aiogram.event - INFO - Update id=524921011 is handled. Duration 1510 ms by bot id=1567112575
+2025-06-26 03:35:51,281 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 03:35:51,532 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
