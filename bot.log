@@ -111,3 +111,39 @@
 2025-06-26 08:37:30,350 - aiogram.event - INFO - Update id=524921035 is handled. Duration 148 ms by bot id=1567112575
 2025-06-26 08:37:59,435 - aiogram.dispatcher - INFO - Polling stopped
 2025-06-26 08:37:59,686 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:40:46,515 - root - INFO - Запуск бота...
+2025-06-26 08:40:46,515 - root - INFO - Инициализация базы данных...
+2025-06-26 08:40:46,516 - root - INFO - SQLite база данных инициализирована
+2025-06-26 08:40:46,516 - root - INFO - База данных инициализирована
+2025-06-26 08:40:46,516 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 08:40:46,702 - root - INFO - Начинаем polling...
+2025-06-26 08:40:46,703 - root - INFO - ==================================================
+2025-06-26 08:40:46,703 - root - INFO - БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ
+2025-06-26 08:40:46,703 - root - INFO - ==================================================
+2025-06-26 08:40:46,703 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 08:40:46,758 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:41:06,726 - aiogram.event - INFO - Update id=524921036 is handled. Duration 258 ms by bot id=1567112575
+2025-06-26 08:41:08,639 - root - ERROR - Ошибка в admin_cancel: Telegram server says - Bad Request: BUTTON_DATA_INVALID
+2025-06-26 08:41:08,712 - aiogram.event - INFO - Update id=524921037 is handled. Duration 202 ms by bot id=1567112575
+2025-06-26 08:43:49,874 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 08:43:50,126 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:43:53,101 - root - INFO - Запуск бота...
+2025-06-26 08:43:53,101 - root - INFO - Инициализация базы данных...
+2025-06-26 08:43:53,102 - root - INFO - SQLite база данных инициализирована
+2025-06-26 08:43:53,102 - root - INFO - База данных инициализирована
+2025-06-26 08:43:53,102 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 08:43:53,265 - root - INFO - Начинаем polling...
+2025-06-26 08:43:53,265 - root - INFO - ==================================================
+2025-06-26 08:43:53,265 - root - INFO - БОТ ЗАПУЩЕН И ГОТОВ К РАБОТЕ
+2025-06-26 08:43:53,265 - root - INFO - ==================================================
+2025-06-26 08:43:53,265 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 08:43:53,312 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 08:43:59,429 - aiogram.event - INFO - Update id=524921038 is handled. Duration 319 ms by bot id=1567112575
+2025-06-26 08:44:06,349 - root - INFO - Создан новый пользователь 1567112575
+2025-06-26 08:44:06,350 - root - INFO - ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ: транзакция stxqckzvUBKXorLwv0VTUu8G7FGE05sUTmRweZwqJKH9qanO50LDT0JpXcrmx_85YW4dUM6tuU90qF87Q-0xz4GEB72Tw8_ZhVwhkK_9p0Mnp8, пользователь 1374423290
+2025-06-26 08:44:06,447 - aiogram.event - INFO - Update id=524921040 is handled. Duration 325 ms by bot id=1567112575
+2025-06-26 08:44:06,450 - aiogram.event - INFO - Update id=524921039 is handled. Duration 675 ms by bot id=1567112575
+2025-06-26 08:45:02,877 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ServerDisconnectedError: Server disconnected
+2025-06-26 08:45:02,877 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 1567112575)
+2025-06-26 08:45:05,834 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 08:45:06,085 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'

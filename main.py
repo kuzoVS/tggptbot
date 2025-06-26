@@ -27,6 +27,7 @@ from deep_translator import GoogleTranslator
 # Импорты наших модулей
 from config import BotConfig
 from database import DatabaseManager
+import hashlib
 
 WHISPER_AVAILABLE = False
 # Инициализация
@@ -253,6 +254,13 @@ def create_subscription_plans_keyboard():
 
 
 # === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+def create_short_transaction_id(transaction_id: str) -> str:
+    """Создает короткий ID для callback_data"""
+    return hashlib.md5(transaction_id.encode()).hexdigest()[:16]
+
+# Добавь словарь для хранения соответствий коротких и полных ID
+transaction_mapping = {}
+
 async def check_user_subscription(user_id: int) -> bool:
     """Проверяет подписку пользователя на канал"""
     try:
@@ -2546,7 +2554,7 @@ async def admin_cancel_cmd(message: types.Message):
     if message.from_user.id not in BotConfig.ADMIN_IDS:
         return
 
-    args = message.text.split(maxsplit=1)
+    args = message.text.split()
     if len(args) < 2:
         await message.answer(
             "Использование:\n"
@@ -2559,8 +2567,7 @@ async def admin_cancel_cmd(message: types.Message):
     transaction_id = args[1]
     manual_user_id = None
 
-    # Проверяем, указан ли user_id вручную
-    if len(args) == 3:
+    if len(args) >= 3:
         try:
             manual_user_id = int(args[2])
         except ValueError:
@@ -2587,7 +2594,10 @@ async def admin_cancel_cmd(message: types.Message):
                 await message.answer(f"⚠️ По транзакции уже произведен возврат\nID: {transaction_id[:30]}...")
                 return
 
-            # Стандартное подтверждение для транзакции из БД
+            # ИСПРАВЛЕНИЕ: Создаем короткий ID для callback_data
+            short_id = create_short_transaction_id(transaction_id)
+            transaction_mapping[short_id] = transaction_id
+
             short_transaction_id = transaction_id[:30] + "..." if len(transaction_id) > 30 else transaction_id
 
             await message.answer(
@@ -2604,7 +2614,7 @@ async def admin_cancel_cmd(message: types.Message):
                 f"• Не может быть отменено\n\n"
                 f"Продолжить?",
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="✅ Да, отменить", callback_data=f"confirm_cancel_db_{transaction_id}")],
+                    [InlineKeyboardButton(text="✅ Да, отменить", callback_data=f"confirm_cancel_db_{short_id}")],
                     [InlineKeyboardButton(text="❌ Нет, не отменять", callback_data="cancel_cancel")]
                 ])
             )
@@ -2618,7 +2628,7 @@ async def admin_cancel_cmd(message: types.Message):
                     f"❌ ТРАНЗАКЦИЯ НЕ НАЙДЕНА В БД\n\n"
                     f"📝 Транзакция: {short_transaction_id}\n\n"
                     f"💡 Для принудительного возврата используйте команду:\n"
-                    f"/admin_cancel {transaction_id} 1374423290\n\n"
+                    f"/admin_cancel {transaction_id} <user_id>\n\n"
                     f"Где:\n"
                     f"• Первый параметр - полный ID транзакции\n"
                     f"• Второй параметр - ID пользователя\n\n"
@@ -2629,7 +2639,6 @@ async def admin_cancel_cmd(message: types.Message):
 
             # Принудительный возврат с указанным user_id
             try:
-                # Попытаемся получить информацию о пользователе
                 user_status = await db_manager.get_user_status(manual_user_id)
                 if user_status:
                     display_name = f"@{user_status['username']}" if user_status['username'] else f"ID: {manual_user_id}"
@@ -2642,7 +2651,10 @@ async def admin_cancel_cmd(message: types.Message):
                 display_name = f"ID: {manual_user_id}"
                 subscription_info = "Информация недоступна"
 
-            # Подтверждение принудительного возврата
+            # ИСПРАВЛЕНИЕ: Создаем короткий ID для принудительного возврата
+            short_id = create_short_transaction_id(transaction_id)
+            transaction_mapping[f"{short_id}_{manual_user_id}"] = transaction_id
+
             short_transaction_id = transaction_id[:30] + "..." if len(transaction_id) > 30 else transaction_id
 
             await message.answer(
@@ -2659,7 +2671,7 @@ async def admin_cancel_cmd(message: types.Message):
                 f"Все равно попытаться вернуть средства?",
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text="🚨 Да, принудительный возврат",
-                                          callback_data=f"confirm_cancel_force_{transaction_id}_{manual_user_id}")],
+                                          callback_data=f"confirm_cancel_force_{short_id}_{manual_user_id}")],
                     [InlineKeyboardButton(text="❌ Нет, отменить", callback_data="cancel_cancel")]
                 ])
             )
@@ -2877,7 +2889,13 @@ async def handle_confirm_cancel_db(callback_query: types.CallbackQuery):
         await callback_query.answer("❌ Нет прав", show_alert=True)
         return
 
-    transaction_id = callback_query.data.split("confirm_cancel_db_", 1)[1]
+    short_id = callback_query.data.split("confirm_cancel_db_", 1)[1]
+
+    # ИСПРАВЛЕНИЕ: Получаем полный transaction_id из mapping
+    transaction_id = transaction_mapping.get(short_id)
+    if not transaction_id:
+        await callback_query.message.edit_text("❌ Транзакция не найдена (истек срок)")
+        return
 
     try:
         # Получаем информацию о транзакции
@@ -2891,7 +2909,6 @@ async def handle_confirm_cancel_db(callback_query: types.CallbackQuery):
         amount = transaction_info['amount']
         display_name = f"@{transaction_info['username']}" if transaction_info['username'] else f"ID: {user_id}"
 
-        # Обновляем сообщение
         short_transaction_id = transaction_id[:30] + "..." if len(transaction_id) > 30 else transaction_id
 
         await callback_query.message.edit_text(
@@ -2908,6 +2925,9 @@ async def handle_confirm_cancel_db(callback_query: types.CallbackQuery):
             logging.info(
                 f"АДМИН ОТМЕНА (БД): транзакция {transaction_id}, возвращено {amount} звезд пользователю {user_id}")
 
+        # Очищаем mapping
+        transaction_mapping.pop(short_id, None)
+
     except Exception as e:
         logging.error(f"Ошибка обработки отмены из БД: {e}")
         await callback_query.message.edit_text(f"❌ Ошибка: {e}")
@@ -2915,7 +2935,6 @@ async def handle_confirm_cancel_db(callback_query: types.CallbackQuery):
     await callback_query.answer()
 
 
-# ОБРАБОТЧИК ПРИНУДИТЕЛЬНОГО ВОЗВРАТА
 @dp.callback_query(F.data.startswith("confirm_cancel_force_"))
 async def handle_confirm_cancel_force(callback_query: types.CallbackQuery):
     """Подтверждение принудительного возврата"""
@@ -2924,7 +2943,7 @@ async def handle_confirm_cancel_force(callback_query: types.CallbackQuery):
         return
 
     try:
-        # Парсим данные: confirm_cancel_force_{transaction_id}_{user_id}
+        # ИСПРАВЛЕНИЕ: Парсим короткий ID
         data_parts = callback_query.data.split("confirm_cancel_force_", 1)[1]
         last_underscore = data_parts.rfind('_')
 
@@ -2932,8 +2951,15 @@ async def handle_confirm_cancel_force(callback_query: types.CallbackQuery):
             await callback_query.message.edit_text("❌ Ошибка парсинга данных")
             return
 
-        transaction_id = data_parts[:last_underscore]
+        short_id = data_parts[:last_underscore]
         user_id = int(data_parts[last_underscore + 1:])
+
+        # Получаем полный transaction_id из mapping
+        mapping_key = f"{short_id}_{user_id}"
+        transaction_id = transaction_mapping.get(mapping_key)
+        if not transaction_id:
+            await callback_query.message.edit_text("❌ Транзакция не найдена (истек срок)")
+            return
 
         # Получаем отображаемое имя
         try:
@@ -2943,27 +2969,15 @@ async def handle_confirm_cancel_force(callback_query: types.CallbackQuery):
         except:
             display_name = f"ID: {user_id}"
 
-        # Обновляем сообщение
         short_transaction_id = transaction_id[:20] + "..." if len(transaction_id) > 20 else transaction_id
 
-        try:
-            await callback_query.message.edit_text(
-                f"🚨 **ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ\\.\\.\\.**\n\n"
-                f"👤 Пользователь: {display_name}\n"
-                f"💰 Сумма: определяется Telegram\n"
-                f"📝 Транзакция: `{short_transaction_id}`\n\n"
-                f"⏳ Попытка возврата через Telegram API\\.\\.\\.",
-                parse_mode="MarkdownV2"
-            )
-        except Exception as markdown_error:
-            logging.warning(f"Ошибка MarkdownV2 в принудительном возврате: {markdown_error}")
-            await callback_query.message.edit_text(
-                f"🚨 ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ...\n\n"
-                f"👤 Пользователь: {display_name}\n"
-                f"💰 Сумма: определяется Telegram\n"
-                f"📝 Транзакция: {short_transaction_id}\n\n"
-                f"⏳ Попытка возврата через Telegram API..."
-            )
+        await callback_query.message.edit_text(
+            f"🚨 ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ...\n\n"
+            f"👤 Пользователь: {display_name}\n"
+            f"💰 Сумма: определяется Telegram\n"
+            f"📝 Транзакция: {short_transaction_id}\n\n"
+            f"⏳ Попытка возврата через Telegram API..."
+        )
 
         # Пытаемся вернуть средства без знания суммы
         success = await process_refund(transaction_id, user_id, "неизвестно", display_name, callback_query.message,
@@ -2972,12 +2986,14 @@ async def handle_confirm_cancel_force(callback_query: types.CallbackQuery):
         if success:
             logging.info(f"ПРИНУДИТЕЛЬНЫЙ ВОЗВРАТ: транзакция {transaction_id}, пользователь {user_id}")
 
+        # Очищаем mapping
+        transaction_mapping.pop(mapping_key, None)
+
     except Exception as e:
         logging.error(f"Ошибка принудительного возврата: {e}")
         await callback_query.message.edit_text(f"❌ Ошибка: {e}")
 
     await callback_query.answer()
-
 
 @dp.callback_query(F.data == "cancel_cancel")
 async def handle_cancel_cancel(callback_query: types.CallbackQuery):
