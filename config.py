@@ -2,7 +2,7 @@ import os
 
 
 class BotConfig:
-    BOT_TOKEN = "token"
+    BOT_TOKEN = "1567112575:AAFB3EWZ8BZxuzsgnQ7q9j5Jmt9hkGO_dQo"
     OPENAPI = "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"
 
     # Цены подписки в Telegram Stars

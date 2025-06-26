@@ -242,14 +242,36 @@ def create_generation_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-def create_subscription_plans_keyboard():
-    """Создает клавиатуру с планами подписки"""
-    keyboard = [
-        [InlineKeyboardButton(text="🔥 Пробная неделя - 1⭐", callback_data="buy_week_trial")],
+async def create_subscription_plans_keyboard(user_id: int):
+    """Создает клавиатуру с планами подписки (асинхронная версия)"""
+    keyboard = []
+
+    # Проверяем доступность trial
+    has_trial = await db_manager.has_used_trial_before(user_id)
+
+    if has_trial:
+        # Trial уже использован
+        keyboard.append([
+            InlineKeyboardButton(
+                text="🔒 Пробная неделя (уже использована)",
+                callback_data="trial_used"
+            )
+        ])
+    else:
+        # Trial доступен
+        keyboard.append([
+            InlineKeyboardButton(
+                text="🔥 Пробная неделя - 1⭐",
+                callback_data="buy_week_trial"
+            )
+        ])
+
+    keyboard.extend([
         [InlineKeyboardButton(text="📅 Месяц - 555⭐", callback_data="buy_month")],
         [InlineKeyboardButton(text="💰 3 месяца - 1111⭐", callback_data="buy_3months")],
         [InlineKeyboardButton(text="↩️ Назад", callback_data="back_main")]
-    ]
+    ])
+
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
@@ -1259,7 +1281,7 @@ async def handle_referral_menu(message: types.Message):
 
 @dp.message(F.text == "💎 Подписка")
 async def handle_subscription_menu(message: types.Message):
-    """Обработчик меню подписки"""
+    """Обработчик меню подписки (ОБНОВЛЕННАЯ ВЕРСИЯ)"""
     user_id = message.from_user.id
 
     try:
@@ -1279,13 +1301,16 @@ async def handle_subscription_menu(message: types.Message):
         subscription_text += "• Приоритетная обработка запросов\n\n"
 
         if status["subscription_type"] == "free":
+            # Проверяем использование trial
+            has_trial = await db_manager.has_used_trial_before(user_id)
+
+            if has_trial:
+                subscription_text += "🔒 Пробная подписка уже была использована\n\n"
+
             subscription_text += "Выберите план подписки:"
 
-            await message.answer(
-                subscription_text,
-                reply_markup=create_subscription_plans_keyboard(),
-                parse_mode="Markdown"
-            )
+            keyboard = await create_subscription_plans_keyboard(user_id)
+            await message.answer(subscription_text, reply_markup=keyboard, parse_mode="Markdown")
         else:
             subscription_text += "Спасибо за использование Premium! 🙏"
             await message.answer(subscription_text, parse_mode="Markdown")
@@ -1415,7 +1440,7 @@ async def handle_generation_callback(callback_query: types.CallbackQuery, state:
 
 @dp.callback_query(F.data.startswith("buy_"))
 async def handle_subscription_purchase(callback_query: types.CallbackQuery):
-    """Обработчик покупки подписки через Telegram Stars"""
+    """Обработчик покупки подписки через Telegram Stars (ОБНОВЛЕННАЯ ВЕРСИЯ)"""
     subscription_type = callback_query.data.split("_", 1)[1]
     user_id = callback_query.from_user.id
 
@@ -1423,6 +1448,17 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
     if subscription_type not in BotConfig.SUBSCRIPTION_PRICES:
         await callback_query.answer("❌ Неизвестный тип подписки", show_alert=True)
         return
+
+    # НОВАЯ ПРОВЕРКА: Блокируем повторное использование trial
+    if subscription_type in ['week_trial', 'trial']:
+        has_trial = await db_manager.has_used_trial_before(user_id)
+        if has_trial:
+            await callback_query.answer(
+                "🔒 Trial подписка доступна только один раз для каждого пользователя!\n\n"
+                "💎 Выберите полную подписку для продолжения использования премиум функций.",
+                show_alert=True
+            )
+            return
 
     amount = BotConfig.SUBSCRIPTION_PRICES[subscription_type]
 
@@ -1475,6 +1511,14 @@ async def handle_subscription_purchase(callback_query: types.CallbackQuery):
         logging.error(f"Ошибка создания инвойса: {e}")
         await callback_query.answer("❌ Ошибка создания платежа", show_alert=True)
 
+@dp.callback_query(F.data == "trial_used")
+async def handle_trial_used_callback(callback_query: types.CallbackQuery):
+    """Обработчик нажатия на недоступный trial"""
+    await callback_query.answer(
+        "🔒 Trial подписка доступна только один раз для каждого пользователя.\n\n"
+        "💎 Выберите полную подписку для получения доступа к премиум функциям!",
+        show_alert=True
+    )
 
 @dp.pre_checkout_query()
 async def handle_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
@@ -1493,18 +1537,16 @@ async def handle_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
 
 @dp.message(F.successful_payment)
 async def handle_successful_payment(message: types.Message):
-    """Обработчик успешного платежа"""
+    """Обработчик успешного платежа (ОБНОВЛЕННАЯ ВЕРСИЯ)"""
     payment = message.successful_payment
     payload = payment.invoice_payload
     transaction_id = payment.telegram_payment_charge_id
 
-    # ЛОГИРУЕМ ДЕТАЛИ ПЛАТЕЖА
     logging.info(f"=== УСПЕШНЫЙ ПЛАТЕЖ ===")
     logging.info(f"Пользователь: {message.from_user.id} (@{message.from_user.username})")
     logging.info(f"Payload: {payload}")
     logging.info(f"Сумма: {payment.total_amount} {payment.currency}")
     logging.info(f"Telegram Payment Charge ID: {transaction_id}")
-    logging.info(f"Provider Payment Charge ID: {payment.provider_payment_charge_id}")
     logging.info(f"=======================")
 
     user_id = message.from_user.id
@@ -1533,6 +1575,22 @@ async def handle_successful_payment(message: types.Message):
 
         logging.info(f"Парсинг payload: subscription_type='{subscription_type}', user_id={user_id}")
 
+        # НОВАЯ ПРОВЕРКА: Дополнительная проверка trial при оплате
+        if subscription_type in ['week_trial', 'trial']:
+            has_trial = await db_manager.has_used_trial_before(user_id)
+            if has_trial:
+                logging.warning(f"ПОПЫТКА ПОВТОРНОГО TRIAL: пользователь {user_id} уже использовал trial!")
+                await attempt_refund(user_id, transaction_id, "Повторная попытка использования trial подписки")
+
+                await message.answer(
+                    "❌ **Ошибка оплаты**\n\n"
+                    "🔒 Trial подписка доступна только один раз для каждого пользователя.\n"
+                    "💰 Средства будут автоматически возвращены.\n\n"
+                    "💎 Выберите полную подписку для получения премиум доступа.",
+                    parse_mode="Markdown"
+                )
+                return
+
         # Определяем количество дней подписки
         days_map = {
             "week_trial": 7,
@@ -1555,7 +1613,6 @@ async def handle_successful_payment(message: types.Message):
         )
 
         if not payment_saved:
-            # Если не удалось сохранить платеж - возвращаем деньги
             logging.error(f"КРИТИЧЕСКАЯ ОШИБКА: Не удалось сохранить платеж {transaction_id} в БД!")
             await attempt_refund(user_id, transaction_id, "Ошибка сохранения платежа в базе данных")
             refund_attempted = True
@@ -1580,13 +1637,24 @@ async def handle_successful_payment(message: types.Message):
             refund_attempted = True
             return
 
+        # НОВОЕ: Отмечаем trial как использованный
+        if subscription_type in ['week_trial', 'trial']:
+            await db_manager.mark_trial_as_used(user_id)
+            logging.info(f"Trial отмечен как использованный для пользователя {user_id}")
+
         # Успешное завершение
+        success_message = f"✅ **Платеж успешно обработан!**\n\n"
+        success_message += f"💎 Premium подписка активирована на {days} дней\n"
+
+        if subscription_type in ['week_trial', 'trial']:
+            success_message += f"🔥 Это ваша пробная подписка!\n"
+
+        success_message += f"🎉 Спасибо за покупку!\n\n"
+        success_message += f"📝 Номер транзакции: `{transaction_id[:20]}...`\n"
+        success_message += f"Теперь вам доступны все премиум функции бота."
+
         await message.answer(
-            f"✅ **Платеж успешно обработан!**\n\n"
-            f"💎 Premium подписка активирована на {days} дней\n"
-            f"🎉 Спасибо за покупку!\n\n"
-            f"📝 Номер транзакции: `{transaction_id[:20]}...`\n"
-            f"Теперь вам доступны все премиум функции бота.",
+            success_message,
             parse_mode="Markdown",
             message_effect_id="5104841245755180586"
         )
@@ -1718,7 +1786,7 @@ async def handle_back_to_subscription(callback_query: types.CallbackQuery):
 
             await callback_query.message.edit_text(
                 subscription_text,
-                reply_markup=create_subscription_plans_keyboard(),
+                reply_markup=await create_subscription_plans_keyboard(user_id),
                 parse_mode="Markdown"
             )
         else:
@@ -2505,14 +2573,14 @@ async def admin_cmd(message: types.Message):
 
 @dp.message(Command("admin_stats"))
 async def admin_stats_cmd(message: types.Message):
-    """Админская статистика"""
+    """Админская статистика (ОБНОВЛЕННАЯ ВЕРСИЯ)"""
     if message.from_user.id not in BotConfig.ADMIN_IDS:
         return
 
     try:
         stats = await db_manager.get_bot_statistics()
+        trial_stats = await db_manager.get_trial_statistics()
 
-        # Безопасно форматируем все числа
         def safe_format(value):
             return str(value) if value is not None else "0"
 
@@ -2520,6 +2588,11 @@ async def admin_stats_cmd(message: types.Message):
         stats_text += f"👥 Всего пользователей: *{safe_format(stats.get('total_users', 0))}*\n"
         stats_text += f"💎 Premium пользователей: *{safe_format(stats.get('premium_users', 0))}*\n"
         stats_text += f"🆓 Бесплатных пользователей: *{safe_format(stats.get('free_users', 0))}*\n\n"
+
+        stats_text += f"🔥 *Trial подписки:*\n"
+        stats_text += f"👥 Использовали trial: *{safe_format(trial_stats.get('users_used_trial', 0))}*\n"
+        stats_text += f"💳 Всего trial платежей: *{safe_format(trial_stats.get('total_trial_payments', 0))}*\n"
+        stats_text += f"💰 Доход от trial: *{safe_format(trial_stats.get('trial_revenue', 0))}⭐*\n\n"
 
         stats_text += f"📈 *Активность за сегодня:*\n"
         stats_text += f"🆕 Новых пользователей: *{safe_format(stats.get('new_users_today', 0))}*\n"
@@ -2539,14 +2612,12 @@ async def admin_stats_cmd(message: types.Message):
             await message.answer(stats_text, parse_mode="Markdown")
         except Exception as markdown_error:
             logging.warning(f"Ошибка парсинга Markdown в статистике: {markdown_error}")
-            # Отправляем без форматирования
             plain_text = stats_text.replace('*', '').replace('_', '')
             await message.answer(plain_text)
 
     except Exception as e:
         logging.error(f"Ошибка получения статистики: {e}")
         await message.answer("❌ Ошибка получения статистики")
-
 
 @dp.message(Command("admin_cancel"))
 async def admin_cancel_cmd(message: types.Message):

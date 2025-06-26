@@ -40,6 +40,13 @@ class DatabaseManager:
             )
         ''')
 
+        try:
+            cursor.execute("SELECT trial_used FROM users LIMIT 1")
+        except sqlite3.OperationalError:
+            # Колонка не существует, добавляем её
+            cursor.execute('ALTER TABLE users ADD COLUMN trial_used BOOLEAN DEFAULT FALSE')
+            logging.info("Добавлена колонка trial_used в таблицу users")
+
         # Таблица использования лимитов (дневные/недельные)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS usage_limits (
@@ -410,6 +417,106 @@ class DatabaseManager:
             await self.increment_daily_stat('image_generation')
 
         return True
+
+    async def has_used_trial_before(self, user_id: int) -> bool:
+        """
+        Проверяет, использовал ли пользователь trial подписку ранее
+        Проверяет как флаг в таблице users, так и историю платежей
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Проверяем флаг в таблице users
+            cursor.execute('SELECT trial_used FROM users WHERE user_id = ?', (user_id,))
+            user_result = cursor.fetchone()
+
+            if user_result and user_result['trial_used']:
+                return True
+
+            # Дополнительная проверка по истории платежей
+            cursor.execute('''
+                SELECT COUNT(*) as count FROM payments 
+                WHERE user_id = ? 
+                AND subscription_type IN ('week_trial', 'trial') 
+                AND status = 'completed'
+            ''', (user_id,))
+
+            payment_result = cursor.fetchone()
+            trial_payments = payment_result['count'] if payment_result else 0
+
+            # Если есть завершенные trial платежи, обновляем флаг
+            if trial_payments > 0:
+                await self.mark_trial_as_used(user_id)
+                return True
+
+            return False
+
+        except Exception as e:
+            logging.error(f"Ошибка проверки trial истории для пользователя {user_id}: {e}")
+            return False
+        finally:
+            conn.close()
+
+    async def mark_trial_as_used(self, user_id: int):
+        """Отмечает, что пользователь использовал trial подписку"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute('''
+                UPDATE users SET trial_used = TRUE, updated_at = CURRENT_TIMESTAMP 
+                WHERE user_id = ?
+            ''', (user_id,))
+            conn.commit()
+            logging.info(f"Отмечен trial как использованный для пользователя {user_id}")
+
+        except Exception as e:
+            logging.error(f"Ошибка отметки trial для пользователя {user_id}: {e}")
+        finally:
+            conn.close()
+
+    async def get_trial_statistics(self) -> Dict[str, int]:
+        """Получает статистику по trial подпискам для админки"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Пользователи с использованным trial
+            cursor.execute('SELECT COUNT(*) as count FROM users WHERE trial_used = TRUE')
+            used_trial_users = cursor.fetchone()['count']
+
+            # Активные trial платежи
+            cursor.execute('''
+                SELECT COUNT(*) as count FROM payments 
+                WHERE subscription_type IN ('week_trial', 'trial') 
+                AND status = 'completed'
+            ''')
+            trial_payments = cursor.fetchone()['count']
+
+            # Доход от trial подписок
+            cursor.execute('''
+                SELECT COALESCE(SUM(amount), 0) as revenue FROM payments 
+                WHERE subscription_type IN ('week_trial', 'trial') 
+                AND status = 'completed'
+            ''')
+            trial_revenue = cursor.fetchone()['revenue']
+
+            return {
+                'users_used_trial': used_trial_users,
+                'total_trial_payments': trial_payments,
+                'trial_revenue': trial_revenue
+            }
+
+        except Exception as e:
+            logging.error(f"Ошибка получения статистики trial: {e}")
+            return {
+                'users_used_trial': 0,
+                'total_trial_payments': 0,
+                'trial_revenue': 0
+            }
+        finally:
+            conn.close()
 
     async def get_user_status(self, user_id: int) -> Dict[str, Any]:
         """Получает полный статус пользователя"""
