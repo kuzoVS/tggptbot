@@ -101,6 +101,8 @@ class DatabaseManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        # Таблица транзакций тут должна быть
+
 
         # Индексы для оптимизации
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_usage_user_period ON usage_limits(user_id, period_start)')

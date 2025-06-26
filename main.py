@@ -1349,6 +1349,7 @@ async def handle_successful_payment(message: types.Message):
         if len(parts) >= 3 and parts[0] == "premium":
             subscription_type = parts[1]
             user_id = int(parts[2])
+            transaction_id = payment.telegram_payment_charge_id  # Получаем ID транзакции
 
             # Определяем количество дней подписки
             days_map = {
@@ -1362,8 +1363,8 @@ async def handle_successful_payment(message: types.Message):
             if subscription_type == "week_trial":
                 days = 7
 
-            # Активируем подписку
-            await db_manager.set_subscription(user_id, "premium", days)
+            # Активируем подписку и сохраняем транзакцию
+            await db_manager.set_subscription(user_id, "premium", days, transaction_id)
 
             await message.answer(
                 f"✅ **Платеж успешно обработан!**\n\n"
@@ -1373,7 +1374,7 @@ async def handle_successful_payment(message: types.Message):
                 parse_mode="Markdown"
             )
 
-            logging.info(f"Успешный платеж от пользователя {user_id}, подписка {subscription_type} на {days} дней")
+            logging.info(f"Успешный платеж от пользователя {user_id}, подписка {subscription_type} на {days} дней, транзакция {transaction_id}")
 
         else:
             logging.error(f"Неверный формат payload: {payload}")
@@ -2190,6 +2191,7 @@ async def admin_cmd(message: types.Message):
         "• /admin_premium [user_id/@username] [days] - Выдать премиум\n"
         "• /admin_reset [user_id/@username] - Сбросить подписку\n"
         "• /admin_broadcast [текст] - Рассылка сообщения\n\n"
+        "• /admin_cancel [транзакция] - Отмена оплаты\n\n"
         "Можно использовать как ID пользователя, так и @username",
     )
 
@@ -2238,6 +2240,59 @@ async def admin_stats_cmd(message: types.Message):
         logging.error(f"Ошибка получения статистики: {e}")
         await message.answer("❌ Ошибка получения статистики")
 
+
+@dp.message(Command("admin_cancel"))
+async def admin_cancel_cmd(message: types.Message):
+    """Отмена транзакции и подписки"""
+    if message.from_user.id not in BotConfig.ADMIN_IDS:
+        return
+
+    args = message.text.split(maxsplit=1)
+    if len(args) != 2:
+        await message.answer("Использование: /admin_cancel <transaction_id>")
+        return
+
+    transaction_id = args[1]
+
+    try:
+        # Получаем информацию о транзакции из базы данных
+        transaction_info = await db_manager.get_transaction_info(transaction_id)
+
+        if not transaction_info:
+            await message.answer(f"❌ Транзакция {transaction_id} не найдена")
+            return
+
+        user_id = transaction_info['user_id']
+        display_name = f"@{transaction_info['username']}" if transaction_info['username'] else f"ID: {user_id}"
+
+        # Отменяем подписку
+        await db_manager.cancel_subscription(transaction_id)
+
+        await message.answer(
+            f"✅ Транзакция отменена\n\n"
+            f"📝 Номер транзакции: `{transaction_id}`\n"
+            f"👤 Пользователь: {display_name}\n"
+            f"💎 Подписка отменена\n"
+            f"💰 Средства возвращены",
+            parse_mode="Markdown"
+        )
+
+        # Уведомляем пользователя
+        try:
+            await bot.send_message(
+                user_id,
+                f"ℹ️ **Уведомление**\n\n"
+                f"Ваша подписка по транзакции `{transaction_id}` была отменена администратором.\n"
+                f"Средства будут возвращены в соответствии с правилами сервиса.\n\n"
+                f"Для уточнения деталей обратитесь в поддержку.",
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.warning(f"Не удалось уведомить пользователя {user_id}: {e}")
+
+    except Exception as e:
+        logging.error(f"Ошибка отмены транзакции: {e}")
+        await message.answer(f"❌ Ошибка: {e}")
 
 @dp.message(Command("admin_user"))
 async def admin_user_cmd(message: types.Message):
