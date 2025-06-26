@@ -90,7 +90,10 @@ class BotConfig:
         "premium_text_requests": 0,  # Премиум нейросети
         "photo_analysis": 7,  # Анализ изображений в день
         "flux_generation": 10,  # Flux в неделю
-        "midjourney_generation": 3  # Midjourney в неделю
+        "midjourney_generation": 3,  # Midjourney в неделю
+        "voice_processing": 0,  # Голосовые сообщения - НЕТ для бесплатных
+        "document_processing": 0  # Документы - НЕТ для бесплатных
+
     }
 
     # Лимиты для премиум пользователей
@@ -99,7 +102,9 @@ class BotConfig:
         "premium_text_requests": 50,  # Премиум нейросети в день
         "photo_analysis": 25,  # Анализ изображений в день
         "flux_generation": 25,  # Flux в неделю
-        "midjourney_generation": 10  # Midjourney в день (не в неделю!)
+        "midjourney_generation": 10,  # Midjourney в день (не в неделю!)
+        "voice_processing": 20,  # Голосовые сообщения в день
+        "document_processing": 15,  # Документы в день
     }
 
     # Реферальные бонусы (в днях)

@@ -6,7 +6,14 @@ import aiohttp
 import sys
 from datetime import datetime
 from typing import Any, Awaitable, Callable, Dict
-
+import speech_recognition as sr
+import pydub
+from pydub import AudioSegment
+import tempfile
+import os
+import PyPDF2
+import docx
+from io import BytesIO
 from aiogram import Bot, Dispatcher, types, F, BaseMiddleware
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -602,6 +609,132 @@ async def get_user_by_identifier(identifier: str) -> tuple[int, str]:
     except Exception as e:
         return None, f"Ошибка при поиске пользователя: {e}"
 
+async def download_voice_as_wav(file_id: str) -> str:
+    """Скачивает голосовое сообщение и конвертирует в WAV"""
+    try:
+        file_info = await bot.get_file(file_id)
+        file_path = file_info.file_path
+        file_url = f"https://api.telegram.org/file/bot{BotConfig.BOT_TOKEN}/{file_path}"
+
+        # Создаем временные файлы
+        temp_ogg = tempfile.NamedTemporaryFile(delete=False, suffix='.ogg')
+        temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(file_url) as response:
+                if response.status == 200:
+                    audio_data = await response.read()
+                    temp_ogg.write(audio_data)
+                    temp_ogg.close()
+
+                    # Конвертируем OGG в WAV
+                    audio = AudioSegment.from_ogg(temp_ogg.name)
+                    audio.export(temp_wav.name, format="wav")
+
+                    # Удаляем временный OGG файл
+                    os.unlink(temp_ogg.name)
+
+                    return temp_wav.name
+                else:
+                    raise Exception(f"Не удалось скачать аудио: {response.status}")
+    except Exception as e:
+        logging.error(f"Ошибка при скачивании аудио: {e}")
+        raise
+
+async def transcribe_audio(wav_file_path: str) -> str:
+    """Транскрибирует аудио в текст"""
+    try:
+        recognizer = sr.Recognizer()
+
+        with sr.AudioFile(wav_file_path) as source:
+            audio_data = recognizer.record(source)
+
+        # Попытка распознавания на русском
+        try:
+            text = recognizer.recognize_google(audio_data, language='ru-RU')
+            return text
+        except sr.UnknownValueError:
+            # Если не получилось на русском, пробуем английский
+            try:
+                text = recognizer.recognize_google(audio_data, language='en-US')
+                return text
+            except sr.UnknownValueError:
+                return "Не удалось распознать речь"
+        except sr.RequestError as e:
+            raise Exception(f"Ошибка сервиса распознавания: {e}")
+
+    except Exception as e:
+        logging.error(f"Ошибка транскрибации: {e}")
+        raise
+    finally:
+        # Удаляем временный файл
+        if os.path.exists(wav_file_path):
+            os.unlink(wav_file_path)
+
+async def download_document(file_id: str) -> tuple[bytes, str]:
+    """Скачивает документ из Telegram"""
+    try:
+        file_info = await bot.get_file(file_id)
+        file_path = file_info.file_path
+        file_url = f"https://api.telegram.org/file/bot{BotConfig.BOT_TOKEN}/{file_path}"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(file_url) as response:
+                if response.status == 200:
+                    file_data = await response.read()
+                    return file_data, file_path
+                else:
+                    raise Exception(f"Не удалось скачать файл: {response.status}")
+    except Exception as e:
+        logging.error(f"Ошибка при скачивании документа: {e}")
+        raise
+
+def extract_text_from_pdf(file_data: bytes) -> str:
+    """Извлекает текст из PDF"""
+    try:
+        pdf_file = BytesIO(file_data)
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+
+        return text.strip()
+    except Exception as e:
+        logging.error(f"Ошибка извлечения текста из PDF: {e}")
+        raise
+
+def extract_text_from_docx(file_data: bytes) -> str:
+    """Извлекает текст из DOCX"""
+    try:
+        doc_file = BytesIO(file_data)
+        doc = docx.Document(doc_file)
+
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+
+        return text.strip()
+    except Exception as e:
+        logging.error(f"Ошибка извлечения текста из DOCX: {e}")
+        raise
+
+def extract_text_from_txt(file_data: bytes) -> str:
+    """Извлекает текст из TXT файлов"""
+    try:
+        # Попытка декодировать в UTF-8
+        try:
+            return file_data.decode('utf-8')
+        except UnicodeDecodeError:
+            # Если не получилось UTF-8, пробуем cp1251 (Windows)
+            try:
+                return file_data.decode('cp1251')
+            except UnicodeDecodeError:
+                # Последняя попытка - latin1
+                return file_data.decode('latin1', errors='ignore')
+    except Exception as e:
+        logging.error(f"Ошибка извлечения текста из TXT: {e}")
+        raise
 
 # === КОМАНДЫ ===
 @dp.message(Command("start"))
@@ -1301,17 +1434,274 @@ async def handle_photo(message: types.Message, state: FSMContext):
         )
 
 
+@dp.message(F.voice)
+async def handle_voice(message: types.Message, state: FSMContext):
+    """Обработчик голосовых сообщений (только для премиум)"""
+    user_id = message.from_user.id
+
+    # Проверяем тип подписки
+    status = await db_manager.get_user_status(user_id)
+    if status["subscription_type"] != "premium":
+        await message.answer(
+            "🎤 **Обработка голосовых сообщений**\n\n"
+            "🔒 Эта функция доступна только для Premium подписчиков!\n\n"
+            "💎 **С Premium вы получите:**\n"
+            "• Распознавание речи в тексте\n"
+            "• Обработка голосовых запросов через AI\n"
+            "• До 20 голосовых сообщений в день\n\n"
+            "Используйте меню 'Подписка' для получения доступа.",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Проверяем лимит
+    limit_check = await db_manager.check_limit(user_id, "voice_processing")
+
+    if not limit_check["allowed"]:
+        await message.answer(
+            f"❌ **Лимит превышен**\n\n"
+            f"🎤 Обработка голоса: {limit_check['used']}/{limit_check['limit']}\n"
+            f"⏰ Лимит обновится завтра в 00:00",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Используем лимит
+    if not await db_manager.use_limit(user_id, "voice_processing"):
+        await message.answer("❌ Не удалось использовать лимит. Попробуйте позже.")
+        return
+
+    remaining = limit_check["remaining"] - 1
+    processing_msg = await message.answer(
+        f"🎤 Распознаю речь... (осталось: {remaining}/{limit_check['limit']})"
+    )
+
+    try:
+        # Скачиваем и конвертируем аудио
+        wav_file_path = await download_voice_as_wav(message.voice.file_id)
+
+        # Распознаем речь
+        transcribed_text = await transcribe_audio(wav_file_path)
+
+        if transcribed_text == "Не удалось распознать речь":
+            await bot.edit_message_text(
+                "❌ Не удалось распознать речь. Попробуйте:\n"
+                "• Говорить более четко\n"
+                "• Записать в тихом месте\n"
+                "• Использовать другой язык",
+                chat_id=processing_msg.chat.id,
+                message_id=processing_msg.message_id
+            )
+            return
+
+        # Удаляем сообщение о процессе
+        try:
+            await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+        except:
+            pass
+
+        # Отправляем распознанный текст
+        await message.answer(
+            f"🎤 **Распознанная речь:**\n\n"
+            f"📝 _{transcribed_text}_\n\n"
+            f"🤖 Обрабатываю ваш запрос...",
+            parse_mode="Markdown"
+        )
+
+        # Обрабатываем как обычное текстовое сообщение
+        # Создаем временное сообщение для обработки
+        temp_message = types.Message(
+            message_id=message.message_id,
+            from_user=message.from_user,
+            date=message.date,
+            chat=message.chat,
+            content_type='text',
+            options={'text': transcribed_text}
+        )
+        temp_message.text = transcribed_text
+
+        await handle_text(temp_message, state)
+
+    except Exception as e:
+        try:
+            await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+        except:
+            pass
+
+        logging.error(f"Ошибка обработки голосового сообщения: {e}")
+        await message.answer(
+            "❌ Ошибка обработки голосового сообщения\n"
+            "💡 Попробуйте:\n"
+            "• Записать сообщение заново\n"
+            "• Проверить качество записи\n"
+            "• Написать текстом"
+        )
+
+
 @dp.message(F.document)
 async def handle_document(message: types.Message, state: FSMContext):
-    """Обработчик документов (изображений в виде файлов)"""
+    """Обработчик документов"""
     document = message.document
+    user_id = message.from_user.id
 
+    # Проверяем, является ли это изображением
     if document.mime_type and document.mime_type.startswith('image/'):
         await handle_photo(message, state)
-    else:
+        return
+
+    # Для текстовых документов требуется премиум
+    status = await db_manager.get_user_status(user_id)
+    if status["subscription_type"] != "premium":
         await message.answer(
-            "📄 Я могу анализировать только изображения.\n"
-            "Отправьте изображение как фото или как файл в формате JPG, PNG, GIF или WebP."
+            "📄 **Обработка документов**\n\n"
+            "🔒 Анализ текстовых документов доступен только для Premium подписчиков!\n\n"
+            "💎 **С Premium вы сможете:**\n"
+            "• Загружать PDF, DOCX, TXT файлы\n"
+            "• Анализировать содержимое документов\n"
+            "• Задавать вопросы по тексту документа\n"
+            "• До 15 документов в день\n\n"
+            "Используйте меню 'Подписка' для получения доступа.",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Проверяем размер файла (макс 20MB)
+    if document.file_size > 20 * 1024 * 1024:
+        await message.answer(
+            "❌ Файл слишком большой!\n"
+            "📏 Максимальный размер: 20MB\n"
+            f"📊 Размер вашего файла: {document.file_size / (1024 * 1024):.1f}MB"
+        )
+        return
+
+    # Проверяем тип файла
+    supported_types = {
+        'application/pdf': 'PDF',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+        'text/plain': 'TXT'
+    }
+
+    if document.mime_type not in supported_types:
+        await message.answer(
+            "❌ Неподдерживаемый тип файла!\n\n"
+            "📄 **Поддерживаемые форматы:**\n"
+            "• PDF (.pdf)\n"
+            "• Word документы (.docx)\n"
+            "• Текстовые файлы (.txt)\n\n"
+            "🖼 Для изображений отправляйте их как фото."
+        )
+        return
+
+    # Проверяем лимит
+    limit_check = await db_manager.check_limit(user_id, "document_processing")
+
+    if not limit_check["allowed"]:
+        await message.answer(
+            f"❌ **Лимит превышен**\n\n"
+            f"📄 Обработка документов: {limit_check['used']}/{limit_check['limit']}\n"
+            f"⏰ Лимит обновится завтра в 00:00",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Используем лимит
+    if not await db_manager.use_limit(user_id, "document_processing"):
+        await message.answer("❌ Не удалось использовать лимит. Попробуйте позже.")
+        return
+
+    remaining = limit_check["remaining"] - 1
+    file_type = supported_types[document.mime_type]
+    processing_msg = await message.answer(
+        f"📄 Обрабатываю {file_type} документ... (осталось: {remaining}/{limit_check['limit']})"
+    )
+
+    try:
+        # Скачиваем документ
+        file_data, file_path = await download_document(document.file_id)
+
+        # Извлекаем текст в зависимости от типа
+        if document.mime_type == 'application/pdf':
+            extracted_text = extract_text_from_pdf(file_data)
+        elif document.mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+            extracted_text = extract_text_from_docx(file_data)
+        elif document.mime_type == 'text/plain':
+            extracted_text = extract_text_from_txt(file_data)
+        else:
+            raise Exception("Неподдерживаемый тип файла")
+
+        if not extracted_text.strip():
+            await bot.edit_message_text(
+                "❌ Не удалось извлечь текст из документа\n"
+                "💡 Возможные причины:\n"
+                "• Документ пустой\n"
+                "• Документ содержит только изображения\n"
+                "• Документ поврежден",
+                chat_id=processing_msg.chat.id,
+                message_id=processing_msg.message_id
+            )
+            return
+
+        # Ограничиваем длину текста для обработки
+        if len(extracted_text) > 10000:
+            extracted_text = extracted_text[:10000] + "\n\n[Текст обрезан из-за большого размера...]"
+
+        # Удаляем сообщение о процессе
+        try:
+            await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+        except:
+            pass
+
+        # Подготавливаем контекст для AI
+        data = await state.get_data()
+        history = data.get("history", [])
+        current_model = data.get("current_model", BotConfig.DEFAULT_MODEL)
+
+        if not history:
+            history.append(get_system_message())
+
+        # Формируем запрос к AI
+        user_query = message.caption if message.caption else "Проанализируй этот документ и расскажи о его содержании"
+
+        document_prompt = f"""Документ '{document.file_name}' ({file_type}):
+
+{extracted_text}
+
+Пользователь спрашивает: {user_query}"""
+
+        history.append({"role": "user", "content": document_prompt})
+
+        # Обрабатываем AI
+        processing_ai_msg = await message.answer("🤖 Анализирую содержимое документа...")
+
+        response_text = await process_message_with_ai(history, processing_ai_msg, current_model)
+
+        history.append({"role": "assistant", "content": response_text})
+        await state.update_data(history=history)
+
+        try:
+            await bot.delete_message(processing_ai_msg.chat.id, processing_ai_msg.message_id)
+        except:
+            pass
+
+        # Отправляем результат
+        model_name = BotConfig.MODEL_NAMES[current_model]
+        full_response = f"📄 **Анализ документа** ({file_type})\n🤖 {model_name}\n📊 Документов: {remaining}/{limit_check['limit']}\n\n" + clean_markdown_for_telegram(
+            response_text)
+        await send_long_message(message, full_response)
+
+    except Exception as e:
+        try:
+            await bot.delete_message(processing_msg.chat.id, processing_msg.message_id)
+        except:
+            pass
+
+        logging.error(f"Ошибка обработки документа: {e}")
+        await message.answer(
+            f"❌ Ошибка обработки документа\n"
+            f"💡 Возможные решения:\n"
+            f"• Проверьте, что файл не поврежден\n"
+            f"• Попробуйте другой формат файла\n"
+            f"• Убедитесь, что документ содержит текст"
         )
 
 
