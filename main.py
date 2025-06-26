@@ -620,87 +620,65 @@ async def start_cmd(message: types.Message, state: FSMContext):
 
     if len(args) > 1:
         referral_code = args[1]
-        logging.info(f"Обработка реферальной ссылки: {referral_code} для пользователя {user_id}")
+
+        if BotConfig.REFERRAL_SETTINGS["log_referral_attempts"]:
+            logging.info(f"Попытка использования реферальной ссылки: {referral_code} пользователем {user_id}")
 
         # Ищем пользователя по реферальному коду
         invited_by = await db_manager.get_user_by_referral_code(referral_code)
 
         if invited_by and invited_by != user_id:
-            logging.info(f"Найден приглашающий пользователь: {invited_by}")
+            if BotConfig.REFERRAL_SETTINGS["log_referral_attempts"]:
+                logging.info(f"Найден приглашающий пользователь: {invited_by}")
 
-            # Проверяем, НЕ существует ли уже пользователь (только для новых пользователей)
-            if not user_exists:
-                # Создаем пользователя с реферальной ссылкой
-                await db_manager.create_user(
-                    user_id=user_id,
-                    username=message.from_user.username,
-                    first_name=message.from_user.first_name,
-                    last_name=message.from_user.last_name,
-                    invited_by=invited_by
-                )
+            # Проверяем право на получение реферального бонуса
+            eligible, reason = await db_manager.is_eligible_for_referral_bonus(user_id)
 
-                bonus_text = (
-                    "\n🎉 **Реферальный бонус активирован!**\n"
-                    "• Вы получили удвоенные лимиты на 1 день\n"
-                    "• Пригласившему вас пользователю выдан 1 день премиума"
-                )
+            if eligible:
+                if not user_exists:
+                    # Создаем нового пользователя с реферальной ссылкой
+                    await db_manager.create_user(
+                        user_id=user_id,
+                        username=message.from_user.username,
+                        first_name=message.from_user.first_name,
+                        last_name=message.from_user.last_name,
+                        invited_by=invited_by
+                    )
+                else:
+                    # Применяем бонус к существующему, но неактивному пользователю
+                    await db_manager.apply_referral_bonus_to_existing_user(user_id, invited_by)
+
+                bonus_text = BotConfig.REFERRAL_MESSAGES["bonus_activated"]
 
                 # Уведомляем приглашающего
                 try:
-                    inviter_status = await db_manager.get_user_status(invited_by)
                     inviter_name = message.from_user.first_name or "Пользователь"
+                    notification_text = BotConfig.REFERRAL_MESSAGES["inviter_notification"].format(
+                        inviter_name=inviter_name
+                    )
 
                     await bot.send_message(
                         invited_by,
-                        f"🎉 **Новый реферал!**\n\n"
-                        f"Пользователь {inviter_name} присоединился по вашей ссылке!\n"
-                        f"🎁 Вы получили 1 день Premium подписки\n\n"
-                        f"👥 Продолжайте приглашать друзей и получайте больше бонусов!",
+                        notification_text,
                         parse_mode="Markdown"
                     )
                 except Exception as e:
                     logging.error(f"Не удалось отправить уведомление пользователю {invited_by}: {e}")
 
             else:
-                logging.info(f"Пользователь {user_id} уже существует, но может получить одноразовый реферальный бонус")
+                if BotConfig.REFERRAL_SETTINGS["log_referral_attempts"]:
+                    logging.info(f"Пользователь {user_id} не может получить реферальный бонус: {reason}")
 
-                # Проверяем, не получал ли пользователь уже реферальный бонус
-                referral_already_used = await db_manager.check_referral_bonus_used(user_id)
+                # Получаем соответствующее сообщение
+                bonus_text = BotConfig.REFERRAL_MESSAGES.get(reason, f"\n❌ {reason}")
 
-                if not referral_already_used:
-                    # Применяем реферальный бонус к существующему пользователю
-                    await db_manager.apply_referral_bonus_to_existing_user(user_id, invited_by)
-
-                    bonus_text = (
-                        "\n🎉 **Реферальный бонус активирован!**\n"
-                        "• Вы получили удвоенные лимиты на 1 день\n"
-                        "• Пригласившему вас пользователю выдан 1 день премиума"
-                    )
-
-                    # Уведомляем приглашающего
-                    try:
-                        inviter_name = message.from_user.first_name or "Пользователь"
-
-                        await bot.send_message(
-                            invited_by,
-                            f"🎉 **Новый реферал!**\n\n"
-                            f"Пользователь {inviter_name} активировал вашу реферальную ссылку!\n"
-                            f"🎁 Вы получили 1 день Premium подписки\n\n"
-                            f"👥 Продолжайте приглашать друзей и получайте больше бонусов!",
-                            parse_mode="Markdown"
-                        )
-                    except Exception as e:
-                        logging.error(f"Не удалось отправить уведомление пользователю {invited_by}: {e}")
-                else:
-                    logging.info(f"Пользователь {user_id} уже использовал реферальный бонус ранее")
-                    bonus_text = "\n💡 Реферальный бонус можно получить только один раз"
         else:
             if invited_by == user_id:
                 logging.warning(f"Пользователь {user_id} пытается использовать свою же реферальную ссылку")
-                bonus_text = "\n⚠️ Нельзя использовать собственную реферальную ссылку"
+                bonus_text = BotConfig.REFERRAL_MESSAGES["own_link"]
             else:
                 logging.warning(f"Не найден пользователь с реферальным кодом: {referral_code}")
-                bonus_text = "\n❌ Неверная реферальная ссылка"
+                bonus_text = BotConfig.REFERRAL_MESSAGES["invalid_link"]
 
     # Создаем обычного пользователя если он не существует и не было реферальной ссылки
     if not user_exists and not invited_by:
@@ -719,6 +697,9 @@ async def start_cmd(message: types.Message, state: FSMContext):
             first_name=message.from_user.first_name,
             last_name=message.from_user.last_name
         )
+
+    # Отмечаем пользователя как активного (для будущих проверок рефералов)
+    await db_manager.mark_user_as_active(user_id)
 
     # Проверяем подписку
     if not await check_user_subscription(user_id):
