@@ -1325,7 +1325,7 @@ async def handle_text(message: types.Message, state: FSMContext):
     user_text = message.text
     user_id = message.from_user.id
     data = await state.get_data()
-
+    await db_manager.mark_user_as_active(user_id)
     # Проверяем, ждем ли мы промпт для генерации
     if data.get("waiting_for_flux_prompt"):
         await state.update_data(waiting_for_flux_prompt=False)

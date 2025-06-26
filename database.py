@@ -832,6 +832,39 @@ class DatabaseManager:
         finally:
             conn.close()
 
+    async def get_referral_debug_info(self, user_id: int) -> Dict[str, Any]:
+        """Получает отладочную информацию о реферальном статусе пользователя"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Информация о пользователе
+        cursor.execute('''
+            SELECT user_id, username, first_name, invited_by, referral_bonus_expires, created_at
+            FROM users WHERE user_id = ?
+        ''', (user_id,))
+        user_info = cursor.fetchone()
+
+        # Информация о рефералах (кого пригласил)
+        cursor.execute('''
+            SELECT invited_id, created_at, bonus_given FROM referrals WHERE inviter_id = ?
+        ''', (user_id,))
+        invited_users = cursor.fetchall()
+
+        # Информация о том, кто пригласил этого пользователя
+        cursor.execute('''
+            SELECT inviter_id, created_at, bonus_given FROM referrals WHERE invited_id = ?
+        ''', (user_id,))
+        invited_by_info = cursor.fetchone()
+
+        conn.close()
+
+        return {
+            "user_info": dict(user_info) if user_info else None,
+            "invited_users": [dict(row) for row in invited_users],
+            "invited_by_info": dict(invited_by_info) if invited_by_info else None,
+            "has_used_referral": invited_by_info is not None
+        }
+
     async def is_eligible_for_referral_bonus(self, user_id: int) -> tuple[bool, str]:
         """
         Проверяет, может ли пользователь получить реферальный бонус
