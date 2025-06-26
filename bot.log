@@ -984,3 +984,23 @@ aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't
 2025-06-26 03:35:39,231 - aiogram.event - INFO - Update id=524921011 is handled. Duration 1510 ms by bot id=1567112575
 2025-06-26 03:35:51,281 - aiogram.dispatcher - INFO - Polling stopped
 2025-06-26 03:35:51,532 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 03:40:31,480 - root - INFO - Запуск бота...
+2025-06-26 03:40:31,480 - root - INFO - Инициализация базы данных...
+2025-06-26 03:40:31,481 - root - INFO - SQLite база данных инициализирована
+2025-06-26 03:40:31,481 - root - INFO - База данных инициализирована
+2025-06-26 03:40:31,481 - root - INFO - Бот запущен и готов к работе!
+2025-06-26 03:40:31,648 - root - INFO - Начинаем polling...
+2025-06-26 03:40:31,648 - aiogram.dispatcher - INFO - Start polling
+2025-06-26 03:40:31,693 - aiogram.dispatcher - INFO - Run polling for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
+2025-06-26 03:40:57,798 - root - ERROR - Ошибка транскрибации: 'utf-8' codec can't decode byte 0xc1 in position 53: invalid start byte
+2025-06-26 03:40:57,850 - root - ERROR - Ошибка обработки голосового сообщения: 'utf-8' codec can't decode byte 0xc1 in position 53: invalid start byte
+2025-06-26 03:40:57,923 - aiogram.event - INFO - Update id=524921012 is handled. Duration 1501 ms by bot id=1567112575
+2025-06-26 03:41:45,099 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-06-26 03:41:45,155 - root - ERROR - Ошибка обработки документа: Error code: 401 - {'error': {'message': 'No auth credentials found', 'code': 401}}
+2025-06-26 03:41:45,226 - aiogram.event - INFO - Update id=524921013 is handled. Duration 1202 ms by bot id=1567112575
+2025-06-26 03:42:01,037 - root - INFO - Пользователь 768902323: Привет...
+2025-06-26 03:42:01,348 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-06-26 03:42:01,400 - root - ERROR - Ошибка при запросе к AI: Error code: 401 - {'error': {'message': 'No auth credentials found', 'code': 401}}
+2025-06-26 03:42:01,478 - aiogram.event - INFO - Update id=524921014 is handled. Duration 503 ms by bot id=1567112575
+2025-06-26 03:43:36,690 - aiogram.dispatcher - INFO - Polling stopped
+2025-06-26 03:43:36,942 - aiogram.dispatcher - INFO - Polling stopped for bot @test_tyz_bot id=1567112575 - 'test bot kuzo'
